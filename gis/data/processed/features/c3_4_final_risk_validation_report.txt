@@ -1,0 +1,54 @@
+VIGRAH — C3.4 FINAL RISK DATASET VALIDATION
+================================================================================
+
+Records: 844
+Columns: 50
+Unique city-road pairs: 844
+
+Strong anomaly roads: 15
+High profile roads: 4
+High baseline + strong anomaly: 3
+
+CITY SUMMARY
+     city  roads  mean_baseline_risk  mean_ml_score  anomalous_roads  high_profile_roads
+Bengaluru    834           33.355834      28.642544                6                   0
+   Mumbai     10           48.425000      55.441891                9                   4
+
+TOP RISK CANDIDATES
+     city    road_id                     road_name       highway  confidence_adjusted_risk_score  ml_anomaly_intensity  ml_enhanced_risk_score         ml_risk_profile ml_profile_level  ml_profile_confidence
+   Mumbai 1262140533 Mumbai Coastal Road - Phase I      motorway                       65.000000              0.767874               67.357472     HIGH_RISK_ANOMALOUS             HIGH               0.930362
+   Mumbai  102177465              Dadar TT flyover         trunk                       65.000000              0.748880               66.977608     HIGH_RISK_ANOMALOUS             HIGH               0.924664
+   Mumbai 1089044162                  Unnamed road      tertiary                       65.000000              0.713395               66.267898     HIGH_RISK_ANOMALOUS             HIGH               0.914018
+   Mumbai 1009368759    Barrister Rajni Patel Marg      tertiary                       65.000000              0.697674               65.953483      HIGH_BASELINE_RISK             HIGH               0.909302
+   Mumbai 1251117271        Madhavdas Amarshi Marg      tertiary                       48.750000              0.857252               56.145031 MODERATE_RISK_ANOMALOUS         MODERATE               0.751293
+   Mumbai  286066445                  Unnamed road      tertiary                       48.750000              0.854582               56.091631 MODERATE_RISK_ANOMALOUS         MODERATE               0.750492
+   Mumbai  647133450      Dr Dadabhai Naoroji Road       primary                       48.750000              0.840629               55.812579 MODERATE_RISK_ANOMALOUS         MODERATE               0.746306
+   Mumbai 1016600601              New Vashi Bridge      motorway                       26.000000              1.000000               40.800000  ANOMALOUS_LOW_BASELINE         MODERATE               0.505882
+   Mumbai 1227365150       Byramji Jeejeebhoy Road      tertiary                       26.000000              0.977552               40.351047  ANOMALOUS_LOW_BASELINE         MODERATE               0.499148
+   Mumbai 1521267941                  Unnamed road   residential                       26.000000              0.893108               38.662158  ANOMALOUS_LOW_BASELINE         MODERATE               0.473815
+Bengaluru   53273588           Manipal County Road     secondary                       32.307692              0.540878               36.663718        MODERATE_PROFILE         MODERATE               0.798915
+Bengaluru  111871780      Green Garden Layout Road   residential                       31.818182              0.492395               35.302450        MODERATE_PROFILE         MODERATE               0.772852
+Bengaluru   48166762                 Church Street  unclassified                       27.000000              0.636883               34.337667        LOW_RISK_PROFILE              LOW               0.702830
+Bengaluru   26676549                  Unnamed road      tertiary                       35.000000              0.299286               33.985722        MODERATE_PROFILE              LOW               0.789786
+Bengaluru 1196514128           Mahatma Gandhi Road     secondary                       32.500000              0.380902               33.618039        MODERATE_PROFILE              LOW               0.755447
+Bengaluru  256682038                Infosys Avenue      tertiary                       35.000000              0.257159               33.143174        MODERATE_PROFILE              LOW               0.777148
+Bengaluru 1117405971                  Unnamed road motorway_link                       35.000000              0.250900               33.018002        MODERATE_PROFILE              LOW               0.775270
+Bengaluru 1124616640         Srinivagilu Main Road     secondary                       35.000000              0.249306               32.986125        MODERATE_PROFILE              LOW               0.774792
+Bengaluru  490296796               10th Cross Road     secondary                       35.000000              0.241610               32.832194        MODERATE_PROFILE              LOW               0.772483
+Bengaluru 1379022542             Dr. CV Raman Road         trunk                       35.000000              0.225411               32.508215        MODERATE_PROFILE              LOW               0.767623
+
+HIGH BASELINE + STRONG ML ANOMALY
+  city    road_id                     road_name  highway  confidence_adjusted_risk_score  ml_anomaly_intensity  ml_enhanced_risk_score     ml_risk_profile ml_profile_level  ml_profile_confidence
+Mumbai 1262140533 Mumbai Coastal Road - Phase I motorway                            65.0              0.767874               67.357472 HIGH_RISK_ANOMALOUS             HIGH               0.930362
+Mumbai  102177465              Dadar TT flyover    trunk                            65.0              0.748880               66.977608 HIGH_RISK_ANOMALOUS             HIGH               0.924664
+Mumbai 1089044162                  Unnamed road tertiary                            65.0              0.713395               66.267898 HIGH_RISK_ANOMALOUS             HIGH               0.914018
+
+METHODOLOGICAL INTERPRETATION
+Baseline risk = contextual benchmark.
+ML anomaly = unsupervised structural signal.
+ML-enhanced score = diagnostic prioritization indicator.
+Accident data = contextual, NOT road-level.
+Crime data = contextual, NOT road-level.
+Supervised probability = NOT claimed.
+
+FINAL STATUS: PASS

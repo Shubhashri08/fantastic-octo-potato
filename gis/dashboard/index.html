@@ -1,0 +1,1716 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>VIGRAH — Intelligence Dashboard</title>
+
+    <!-- =========================================================
+         LEAFLET
+    ========================================================== -->
+
+    <link
+        rel="stylesheet"
+        href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+    >
+
+    <script
+        src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js">
+    </script>
+
+
+    <!-- =========================================================
+         STYLES
+    ========================================================== -->
+
+    <style>
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family:
+                Inter,
+                ui-sans-serif,
+                system-ui,
+                -apple-system,
+                BlinkMacSystemFont,
+                "Segoe UI",
+                sans-serif;
+
+            background: #0b1120;
+            color: #e5e7eb;
+
+            min-height: 100vh;
+        }
+
+
+        /* =====================================================
+           LAYOUT
+        ====================================================== */
+
+        .app {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+
+        /* =====================================================
+           HEADER
+        ====================================================== */
+
+        header {
+            height: 72px;
+
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            padding: 0 28px;
+
+            background: #111827;
+
+            border-bottom: 1px solid #1f2937;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .brand-mark {
+            width: 40px;
+            height: 40px;
+
+            border-radius: 10px;
+
+            display: flex;
+            align-items: center;
+            justify-content: center;
+
+            background: #2563eb;
+
+            font-weight: 800;
+            font-size: 18px;
+        }
+
+        .brand-text h1 {
+            font-size: 20px;
+            letter-spacing: 0.5px;
+        }
+
+        .brand-text p {
+            color: #9ca3af;
+            font-size: 12px;
+            margin-top: 2px;
+        }
+
+        .system-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+
+            color: #9ca3af;
+            font-size: 13px;
+        }
+
+        .status-dot {
+            width: 9px;
+            height: 9px;
+
+            border-radius: 50%;
+
+            background: #22c55e;
+
+            box-shadow:
+                0 0 10px rgba(34, 197, 94, 0.6);
+        }
+
+
+        /* =====================================================
+           MAIN
+        ====================================================== */
+
+        main {
+            flex: 1;
+
+            padding: 24px;
+
+            max-width: 1800px;
+            width: 100%;
+
+            margin: auto;
+        }
+
+
+        /* =====================================================
+           TOP BAR
+        ====================================================== */
+
+        .top-bar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+
+            margin-bottom: 20px;
+        }
+
+        .page-title h2 {
+            font-size: 24px;
+        }
+
+        .page-title p {
+            color: #9ca3af;
+            margin-top: 5px;
+            font-size: 13px;
+        }
+
+
+        /* =====================================================
+           FILTERS
+        ====================================================== */
+
+        .filters {
+            display: flex;
+            gap: 10px;
+        }
+
+        select,
+        button {
+
+            background: #111827;
+
+            color: #e5e7eb;
+
+            border: 1px solid #374151;
+
+            border-radius: 8px;
+
+            padding: 9px 12px;
+
+            font-size: 13px;
+
+            cursor: pointer;
+        }
+
+        button:hover,
+        select:hover {
+            border-color: #4b5563;
+        }
+
+        button.primary {
+            background: #2563eb;
+            border-color: #2563eb;
+        }
+
+
+        /* =====================================================
+           SUMMARY CARDS
+        ====================================================== */
+
+        .summary-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(4, minmax(0, 1fr));
+
+            gap: 14px;
+
+            margin-bottom: 20px;
+        }
+
+        .summary-card {
+
+            background: #111827;
+
+            border: 1px solid #1f2937;
+
+            border-radius: 12px;
+
+            padding: 18px;
+        }
+
+        .summary-label {
+
+            color: #9ca3af;
+
+            font-size: 12px;
+
+            text-transform: uppercase;
+
+            letter-spacing: 0.7px;
+
+            margin-bottom: 10px;
+        }
+
+        .summary-value {
+
+            font-size: 30px;
+
+            font-weight: 700;
+        }
+
+        .summary-sub {
+
+            color: #6b7280;
+
+            font-size: 12px;
+
+            margin-top: 5px;
+        }
+
+        .critical {
+            border-left: 4px solid #ef4444;
+        }
+
+        .high {
+            border-left: 4px solid #f97316;
+        }
+
+        .action {
+            border-left: 4px solid #eab308;
+        }
+
+        .total {
+            border-left: 4px solid #3b82f6;
+        }
+
+
+        /* =====================================================
+           MAIN GRID
+        ====================================================== */
+
+        .content-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                minmax(0, 1.7fr)
+                minmax(360px, 1fr);
+
+            gap: 20px;
+
+            min-height: 650px;
+        }
+
+
+        /* =====================================================
+           PANELS
+        ====================================================== */
+
+        .panel {
+
+            background: #111827;
+
+            border: 1px solid #1f2937;
+
+            border-radius: 12px;
+
+            overflow: hidden;
+        }
+
+        .panel-header {
+
+            height: 58px;
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: space-between;
+
+            padding: 0 18px;
+
+            border-bottom: 1px solid #1f2937;
+        }
+
+        .panel-header h3 {
+            font-size: 15px;
+        }
+
+        .panel-header span {
+
+            color: #6b7280;
+
+            font-size: 12px;
+        }
+
+
+        /* =====================================================
+           MAP
+        ====================================================== */
+
+        #map {
+
+            width: 100%;
+
+            height: 592px;
+
+            background: #0f172a;
+        }
+
+
+        /* =====================================================
+           ALERT FEED
+        ====================================================== */
+
+        .alert-list {
+
+            height: 592px;
+
+            overflow-y: auto;
+        }
+
+        .alert-item {
+
+            padding: 16px;
+
+            border-bottom: 1px solid #1f2937;
+
+            cursor: pointer;
+
+            transition: background 0.15s;
+        }
+
+        .alert-item:hover {
+            background: #172033;
+        }
+
+        .alert-top {
+
+            display: flex;
+
+            justify-content: space-between;
+
+            align-items: center;
+
+            margin-bottom: 8px;
+        }
+
+        .alert-level {
+
+            font-size: 10px;
+
+            font-weight: 800;
+
+            padding: 4px 7px;
+
+            border-radius: 5px;
+
+            letter-spacing: 0.5px;
+        }
+
+        .level-critical {
+            background: rgba(239, 68, 68, 0.18);
+            color: #f87171;
+        }
+
+        .level-high {
+            background: rgba(249, 115, 22, 0.18);
+            color: #fb923c;
+        }
+
+        .level-medium {
+            background: rgba(234, 179, 8, 0.18);
+            color: #facc15;
+        }
+
+        .level-low {
+            background: rgba(34, 197, 94, 0.18);
+            color: #4ade80;
+        }
+
+        .alert-score {
+
+            font-size: 14px;
+
+            font-weight: 700;
+        }
+
+        .alert-road {
+
+            font-size: 14px;
+
+            font-weight: 600;
+
+            margin-bottom: 5px;
+        }
+
+        .alert-meta {
+
+            display: flex;
+
+            gap: 8px;
+
+            color: #9ca3af;
+
+            font-size: 12px;
+        }
+
+        .alert-status {
+
+            margin-top: 10px;
+
+            font-size: 11px;
+
+            color: #9ca3af;
+        }
+
+        .no-alerts {
+
+            padding: 40px 20px;
+
+            text-align: center;
+
+            color: #6b7280;
+        }
+
+
+        /* =====================================================
+           DETAIL PANEL
+        ====================================================== */
+
+        .detail-panel {
+
+            margin-top: 20px;
+
+            background: #111827;
+
+            border: 1px solid #1f2937;
+
+            border-radius: 12px;
+
+            padding: 20px;
+        }
+
+        .detail-grid {
+
+            display: grid;
+
+            grid-template-columns:
+                repeat(4, minmax(0, 1fr));
+
+            gap: 15px;
+
+            margin-top: 16px;
+        }
+
+        .detail-field {
+
+            background: #0f172a;
+
+            border-radius: 8px;
+
+            padding: 12px;
+        }
+
+        .detail-field label {
+
+            display: block;
+
+            color: #6b7280;
+
+            font-size: 10px;
+
+            text-transform: uppercase;
+
+            margin-bottom: 6px;
+        }
+
+        .detail-field value {
+
+            font-size: 13px;
+
+            color: #e5e7eb;
+        }
+
+
+        /* =====================================================
+           LOADING
+        ====================================================== */
+
+        .loading {
+
+            display: flex;
+
+            align-items: center;
+
+            justify-content: center;
+
+            height: 100%;
+
+            color: #6b7280;
+
+            font-size: 13px;
+        }
+
+
+        /* =====================================================
+           RESPONSIVE
+        ====================================================== */
+
+        @media (max-width: 1100px) {
+
+            .content-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .summary-grid {
+                grid-template-columns:
+                    repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 700px) {
+
+            main {
+                padding: 14px;
+            }
+
+            header {
+                padding: 0 14px;
+            }
+
+            .top-bar {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 12px;
+            }
+
+            .filters {
+                width: 100%;
+                flex-wrap: wrap;
+            }
+
+            .summary-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .detail-grid {
+                grid-template-columns:
+                    repeat(2, 1fr);
+            }
+        }
+
+    </style>
+
+</head>
+
+
+<body>
+
+<div class="app">
+
+
+    <!-- =========================================================
+         HEADER
+    ========================================================== -->
+
+    <header>
+
+        <div class="brand">
+
+            <div class="brand-mark">
+                V
+            </div>
+
+            <div class="brand-text">
+
+                <h1>VIGRAH</h1>
+
+                <p>
+                    Visual Intelligence & Geospatial Risk Analysis Hub
+                </p>
+
+            </div>
+
+        </div>
+
+
+        <div class="system-status">
+
+            <span class="status-dot"></span>
+
+            API CONNECTED
+
+        </div>
+
+    </header>
+
+
+    <!-- =========================================================
+         MAIN
+    ========================================================== -->
+
+    <main>
+
+
+        <!-- =====================================================
+             TITLE + FILTERS
+        ====================================================== -->
+
+        <div class="top-bar">
+
+            <div class="page-title">
+
+                <h2>Intelligence Dashboard</h2>
+
+                <p>
+                    Event → Road → Risk → Alert
+                </p>
+
+            </div>
+
+
+            <div class="filters">
+
+                <select id="cityFilter">
+
+                    <option value="">
+                        All Cities
+                    </option>
+
+                    <option value="Mumbai">
+                        Mumbai
+                    </option>
+
+                    <option value="Bengaluru">
+                        Bengaluru
+                    </option>
+
+                </select>
+
+
+                <select id="levelFilter">
+
+                    <option value="">
+                        All Levels
+                    </option>
+
+                    <option value="CRITICAL">
+                        Critical
+                    </option>
+
+                    <option value="HIGH">
+                        High
+                    </option>
+
+                    <option value="MEDIUM">
+                        Medium
+                    </option>
+
+                    <option value="LOW">
+                        Low
+                    </option>
+
+                </select>
+
+
+                <button
+                    class="primary"
+                    onclick="loadDashboard()"
+                >
+                    Refresh
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <!-- =====================================================
+             SUMMARY
+        ====================================================== -->
+
+        <section class="summary-grid">
+
+
+            <div class="summary-card total">
+
+                <div class="summary-label">
+                    Total Alerts
+                </div>
+
+                <div
+                    class="summary-value"
+                    id="totalAlerts"
+                >
+                    —
+                </div>
+
+                <div class="summary-sub">
+                    Current dashboard records
+                </div>
+
+            </div>
+
+
+            <div class="summary-card critical">
+
+                <div class="summary-label">
+                    Critical
+                </div>
+
+                <div
+                    class="summary-value"
+                    id="criticalAlerts"
+                >
+                    —
+                </div>
+
+                <div class="summary-sub">
+                    Immediate attention
+                </div>
+
+            </div>
+
+
+            <div class="summary-card high">
+
+                <div class="summary-label">
+                    High
+                </div>
+
+                <div
+                    class="summary-value"
+                    id="highAlerts"
+                >
+                    —
+                </div>
+
+                <div class="summary-sub">
+                    High-priority events
+                </div>
+
+            </div>
+
+
+            <div class="summary-card action">
+
+                <div class="summary-label">
+                    Action Required
+                </div>
+
+                <div
+                    class="summary-value"
+                    id="actionAlerts"
+                >
+                    —
+                </div>
+
+                <div class="summary-sub">
+                    Requires operator review
+                </div>
+
+            </div>
+
+
+        </section>
+
+
+        <!-- =====================================================
+             MAP + ALERT FEED
+        ====================================================== -->
+
+        <section class="content-grid">
+
+
+            <!-- =================================================
+                 MAP
+            ================================================== -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <h3>
+                        Geospatial Alert Map
+                    </h3>
+
+                    <span id="mapStatus">
+                        Loading...
+                    </span>
+
+                </div>
+
+                <div id="map">
+
+                    <div class="loading">
+                        Loading map...
+                    </div>
+
+                </div>
+
+            </div>
+
+
+            <!-- =================================================
+                 ALERT FEED
+            ================================================== -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <h3>
+                        Alert Feed
+                    </h3>
+
+                    <span id="alertCount">
+                        0 alerts
+                    </span>
+
+                </div>
+
+
+                <div
+                    class="alert-list"
+                    id="alertList"
+                >
+
+                    <div class="loading">
+                        Loading alerts...
+                    </div>
+
+                </div>
+
+            </div>
+
+
+        </section>
+
+
+        <!-- =====================================================
+             SELECTED ALERT
+        ====================================================== -->
+
+        <section class="detail-panel">
+
+            <div class="panel-header">
+
+                <h3>
+                    Selected Alert
+                </h3>
+
+                <span id="selectedAlertId">
+                    No alert selected
+                </span>
+
+            </div>
+
+
+            <div
+                id="detailContent"
+                class="no-alerts"
+            >
+
+                Select an alert from the feed or map.
+
+            </div>
+
+        </section>
+
+
+    </main>
+
+</div>
+
+
+<!-- ============================================================
+     JAVASCRIPT
+============================================================= -->
+
+<script>
+
+
+/* =============================================================
+   CONFIGURATION
+============================================================= */
+
+const API_BASE = "http://127.0.0.1:8000";
+
+
+/* =============================================================
+   GLOBAL STATE
+============================================================= */
+
+let alerts = [];
+
+let map = null;
+
+let markers = [];
+
+let selectedAlert = null;
+
+
+/* =============================================================
+   INITIALIZE MAP
+============================================================= */
+
+function initializeMap() {
+
+    map = L.map("map").setView(
+        [19.0760, 72.8777],
+        6
+    );
+
+
+    L.tileLayer(
+        "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+        {
+            maxZoom: 19,
+            attribution:
+                "&copy; OpenStreetMap contributors"
+        }
+    ).addTo(map);
+
+}
+
+
+/* =============================================================
+   API REQUEST HELPER
+============================================================= */
+
+async function apiRequest(endpoint) {
+
+    const response = await fetch(
+        `${API_BASE}${endpoint}`
+    );
+
+
+    if (!response.ok) {
+
+        throw new Error(
+            `API request failed: ${response.status}`
+        );
+
+    }
+
+
+    return await response.json();
+
+}
+
+
+/* =============================================================
+   LOAD SUMMARY
+============================================================= */
+
+async function loadSummary() {
+
+    const data =
+        await apiRequest(
+            "/api/alerts/summary"
+        );
+
+
+    document.getElementById(
+        "totalAlerts"
+    ).textContent =
+        data.total_alert_records ?? 0;
+
+
+    document.getElementById(
+        "criticalAlerts"
+    ).textContent =
+        data.alert_levels?.CRITICAL ?? 0;
+
+
+    document.getElementById(
+        "highAlerts"
+    ).textContent =
+        data.alert_levels?.HIGH ?? 0;
+
+
+    document.getElementById(
+        "actionAlerts"
+    ).textContent =
+        data.action_required ?? 0;
+
+}
+
+
+/* =============================================================
+   LOAD ALERTS
+============================================================= */
+
+async function loadAlerts() {
+
+    const city =
+        document.getElementById(
+            "cityFilter"
+        ).value;
+
+
+    const level =
+        document.getElementById(
+            "levelFilter"
+        ).value;
+
+
+    const params = new URLSearchParams();
+
+
+    if (city) {
+
+        params.append(
+            "city",
+            city
+        );
+
+    }
+
+
+    if (level) {
+
+        params.append(
+            "alert_level",
+            level
+        );
+
+    }
+
+
+    const query =
+        params.toString();
+
+
+    const endpoint =
+        query
+            ? `/api/alerts?${query}`
+            : "/api/alerts";
+
+
+    const data =
+        await apiRequest(endpoint);
+
+
+    alerts = data.alerts || [];
+
+
+    renderAlerts();
+
+    renderMarkers();
+
+}
+
+
+/* =============================================================
+   RENDER ALERT LIST
+============================================================= */
+
+function renderAlerts() {
+
+    const container =
+        document.getElementById(
+            "alertList"
+        );
+
+
+    document.getElementById(
+        "alertCount"
+    ).textContent =
+        `${alerts.length} alerts`;
+
+
+    if (!alerts.length) {
+
+        container.innerHTML = `
+            <div class="no-alerts">
+                No alerts match the selected filters.
+            </div>
+        `;
+
+        return;
+
+    }
+
+
+    container.innerHTML =
+        alerts
+            .map(
+                alert => createAlertHTML(alert)
+            )
+            .join("");
+
+}
+
+
+/* =============================================================
+   ALERT HTML
+============================================================= */
+
+function createAlertHTML(alert) {
+
+    const level =
+        String(
+            alert.alert_level || "LOW"
+        ).toLowerCase();
+
+
+    const road =
+        alert.road_display_name
+        || "Unnamed road";
+
+
+    const eventType =
+        alert.event_type_label
+        || "Unknown event";
+
+
+    const city =
+        alert.city
+        || "Unknown city";
+
+
+    const score =
+        alert.alert_score != null
+            ? Number(
+                alert.alert_score
+            ).toFixed(2)
+            : "—";
+
+
+    const status =
+        alert.dashboard_status
+        || "INFORMATIONAL";
+
+
+    return `
+
+        <div
+            class="alert-item"
+            onclick='selectAlert(${JSON.stringify(
+                alert
+            )})'
+        >
+
+            <div class="alert-top">
+
+                <span
+                    class="alert-level level-${level}"
+                >
+                    ${level.toUpperCase()}
+                </span>
+
+                <span class="alert-score">
+                    ${score}
+                </span>
+
+            </div>
+
+
+            <div class="alert-road">
+                ${escapeHTML(road)}
+            </div>
+
+
+            <div class="alert-meta">
+
+                <span>
+                    ${escapeHTML(city)}
+                </span>
+
+                <span>•</span>
+
+                <span>
+                    ${escapeHTML(eventType)}
+                </span>
+
+            </div>
+
+
+            <div class="alert-status">
+
+                ${escapeHTML(status)}
+
+            </div>
+
+        </div>
+
+    `;
+
+}
+
+
+/* =============================================================
+   RENDER MAP MARKERS
+============================================================= */
+
+function renderMarkers() {
+
+    if (!map) {
+        return;
+    }
+
+
+    markers.forEach(
+        marker => map.removeLayer(marker)
+    );
+
+
+    markers = [];
+
+
+    const validAlerts =
+        alerts.filter(
+            alert =>
+                alert.map_latitude != null
+                &&
+                alert.map_longitude != null
+        );
+
+
+    validAlerts.forEach(
+        alert => {
+
+            const level =
+                String(
+                    alert.alert_level || "LOW"
+                ).toUpperCase();
+
+
+            const color =
+                getLevelColor(level);
+
+
+            const marker =
+                L.circleMarker(
+                    [
+                        Number(
+                            alert.map_latitude
+                        ),
+                        Number(
+                            alert.map_longitude
+                        )
+                    ],
+                    {
+                        radius: 9,
+
+                        color: color,
+
+                        fillColor: color,
+
+                        fillOpacity: 0.75,
+
+                        weight: 2
+                    }
+                );
+
+
+            marker.bindPopup(
+                `
+                <div style="min-width:180px">
+
+                    <strong>
+                        ${escapeHTML(
+                            alert.road_display_name
+                            || "Unnamed road"
+                        )}
+                    </strong>
+
+                    <br>
+
+                    ${escapeHTML(
+                        alert.city || ""
+                    )}
+
+                    <br><br>
+
+                    <strong>
+                        ${escapeHTML(
+                            alert.alert_level
+                        )}
+                    </strong>
+
+                    — Score:
+                    ${Number(
+                        alert.alert_score
+                    ).toFixed(2)}
+
+                    <br><br>
+
+                    ${escapeHTML(
+                        alert.event_type_label
+                        || ""
+                    )}
+
+                </div>
+                `
+            );
+
+
+            marker.on(
+                "click",
+                () => selectAlert(alert)
+            );
+
+
+            marker.addTo(map);
+
+
+            markers.push(marker);
+
+        }
+    );
+
+
+    document.getElementById(
+        "mapStatus"
+    ).textContent =
+        `${validAlerts.length} mapped alerts`;
+
+
+    if (validAlerts.length > 0) {
+
+        const bounds =
+            L.latLngBounds(
+                validAlerts.map(
+                    alert => [
+                        Number(
+                            alert.map_latitude
+                        ),
+                        Number(
+                            alert.map_longitude
+                        )
+                    ]
+                )
+            );
+
+
+        map.fitBounds(
+            bounds,
+            {
+                padding: [30, 30]
+            }
+        );
+
+    }
+
+}
+
+
+/* =============================================================
+   SELECT ALERT
+============================================================= */
+
+function selectAlert(alert) {
+
+    selectedAlert = alert;
+
+
+    document.getElementById(
+        "selectedAlertId"
+    ).textContent =
+        alert.alert_id
+        || "Unknown";
+
+
+    const historicalStatus =
+        alert.historical_profile_available
+            ? "Historical risk profile available"
+            : "No historical risk profile";
+
+
+    document.getElementById(
+        "detailContent"
+    ).innerHTML = `
+
+        <div class="detail-grid">
+
+
+            <div class="detail-field">
+
+                <label>
+                    City
+                </label>
+
+                <value>
+                    ${escapeHTML(
+                        alert.city || "—"
+                    )}
+                </value>
+
+            </div>
+
+
+            <div class="detail-field">
+
+                <label>
+                    Road
+                </label>
+
+                <value>
+                    ${escapeHTML(
+                        alert.road_display_name
+                        || "Unnamed road"
+                    )}
+                </value>
+
+            </div>
+
+
+            <div class="detail-field">
+
+                <label>
+                    Event
+                </label>
+
+                <value>
+                    ${escapeHTML(
+                        alert.event_type_label
+                        || "—"
+                    )}
+                </value>
+
+            </div>
+
+
+            <div class="detail-field">
+
+                <label>
+                    Severity
+                </label>
+
+                <value>
+                    ${escapeHTML(
+                        alert.severity_label
+                        || "—"
+                    )}
+                </value>
+
+            </div>
+
+
+            <div class="detail-field">
+
+                <label>
+                    Alert Score
+                </label>
+
+                <value>
+                    ${
+                        alert.alert_score != null
+                        ? Number(
+                            alert.alert_score
+                        ).toFixed(2)
+                        : "—"
+                    }
+                </value>
+
+            </div>
+
+
+            <div class="detail-field">
+
+                <label>
+                    Confidence
+                </label>
+
+                <value>
+                    ${
+                        alert.confidence != null
+                        ? (
+                            Number(
+                                alert.confidence
+                            ) * 100
+                        ).toFixed(1)
+                        + "%"
+                        : "—"
+                    }
+                </value>
+
+            </div>
+
+
+            <div class="detail-field">
+
+                <label>
+                    Road Match Distance
+                </label>
+
+                <value>
+                    ${
+                        alert.event_to_road_distance_m != null
+                        ? Number(
+                            alert.event_to_road_distance_m
+                        ).toFixed(2)
+                        + " m"
+                        : "—"
+                    }
+                </value>
+
+            </div>
+
+
+            <div class="detail-field">
+
+                <label>
+                    Historical Context
+                </label>
+
+                <value>
+                    ${historicalStatus}
+                </value>
+
+            </div>
+
+
+        </div>
+
+    `;
+
+}
+
+
+/* =============================================================
+   LEVEL COLOR
+============================================================= */
+
+function getLevelColor(level) {
+
+    switch (level) {
+
+        case "CRITICAL":
+            return "#ef4444";
+
+        case "HIGH":
+            return "#f97316";
+
+        case "MEDIUM":
+            return "#eab308";
+
+        case "LOW":
+            return "#22c55e";
+
+        default:
+            return "#3b82f6";
+
+    }
+
+}
+
+
+/* =============================================================
+   HTML ESCAPING
+============================================================= */
+
+function escapeHTML(value) {
+
+    if (value == null) {
+        return "";
+    }
+
+
+    return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+
+}
+
+
+/* =============================================================
+   LOAD DASHBOARD
+============================================================= */
+
+async function loadDashboard() {
+
+    try {
+
+        await loadSummary();
+
+        await loadAlerts();
+
+    }
+
+    catch (error) {
+
+        console.error(
+            "Dashboard loading failed:",
+            error
+        );
+
+
+        document.getElementById(
+            "mapStatus"
+        ).textContent =
+            "API connection failed";
+
+
+        document.getElementById(
+            "alertList"
+        ).innerHTML = `
+
+            <div class="no-alerts">
+
+                Unable to connect to VIGRAH API.
+
+                <br><br>
+
+                Make sure FastAPI is running on:
+
+                <br>
+
+                <strong>
+                    http://127.0.0.1:8000
+                </strong>
+
+            </div>
+
+        `;
+
+    }
+
+}
+
+
+/* =============================================================
+   FILTER EVENTS
+============================================================= */
+
+document
+    .getElementById("cityFilter")
+    .addEventListener(
+        "change",
+        loadAlerts
+    );
+
+
+document
+    .getElementById("levelFilter")
+    .addEventListener(
+        "change",
+        loadAlerts
+    );
+
+
+/* =============================================================
+   START
+============================================================= */
+
+initializeMap();
+
+loadDashboard();
+
+
+</script>
+
+</body>
+
+</html>

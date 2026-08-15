@@ -1,0 +1,27 @@
+VIGRAH — C3.2 ML PATTERN EVALUATION
+============================================================
+Road records: 844
+Usable ML features: 35
+Selected clusters: 2
+Best silhouette score: 0.7905
+
+ANOMALY DETECTION
+Normal roads: 775
+Anomalous roads: 69
+
+SEMANTIC RULES
+Baseline risk is a benchmark, not a ground-truth label.
+Accident data is contextual.
+Crime data is contextual.
+ML outputs describe road-profile structure.
+
+CLUSTER SUMMARY
+                      roads  mean_cctv  mean_spatial_confidence  mean_camera_distance  mean_review_ratio  mean_baseline_risk
+road_profile_cluster                                                                                                        
+1                        10   0.000000                 0.700000              0.088954           0.000000           48.425000
+0                       834   0.033909                 0.944734              0.006931           0.015919           33.355834
+
+CITY × CLUSTER
+     city  road_profile_cluster  roads
+Bengaluru                     0    834
+   Mumbai                     1     10

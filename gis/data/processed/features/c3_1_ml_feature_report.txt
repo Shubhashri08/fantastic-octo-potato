@@ -1,0 +1,40 @@
+VIGRAH — C3.1 ML FEATURE PREPARATION
+============================================================
+Input records: 844
+ML records: 844
+ML columns: 42
+
+ROAD-LEVEL FEATURES
+  cctv_count
+  mean_camera_distance_m
+  median_camera_distance_m
+  max_camera_distance_m
+  min_camera_distance_m
+  high_quality_matches
+  good_quality_matches
+  low_quality_matches
+  review_matches
+  high_quality_match_ratio
+  review_match_ratio
+  spatial_confidence
+
+ROAD-LEVEL BINARY FEATURES
+  has_multiple_cctvs
+  has_high_quality_match
+  requires_spatial_review
+
+CONTEXTUAL FEATURES
+  road_accidents_2023
+  total_traffic_accidents_2023
+  city_accident_fatality_rate
+  total_crime_against_women
+  total_crime_against_children
+
+IMPORTANT SEMANTIC RULE:
+Accident and crime indicators remain
+contextual features.
+They are not road-level incident labels.
+
+BASELINE RISK:
+Retained as benchmark/reference.
+It is NOT used as a ground-truth label.

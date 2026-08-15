@@ -1,0 +1,61 @@
+{
+  "project": "VIGRAH",
+  "dataset": "dashboard_alerts",
+  "version": "D4.2",
+  "record_count": 4,
+  "description": "Dashboard-ready alert records generated from the VIGRAH D3 alert pipeline.",
+  "endpoints": {
+    "list_alerts": {
+      "method": "GET",
+      "path": "/api/alerts",
+      "description": "Return dashboard-ready alerts."
+    },
+    "alert_detail": {
+      "method": "GET",
+      "path": "/api/alerts/{alert_id}",
+      "description": "Return one alert by alert ID."
+    },
+    "summary": {
+      "method": "GET",
+      "path": "/api/alerts/summary",
+      "description": "Return alert counts and score summary."
+    },
+    "city_alerts": {
+      "method": "GET",
+      "path": "/api/alerts/city/{city}",
+      "description": "Return alerts for one operational city."
+    }
+  },
+  "fields": {
+    "alert_id": "string",
+    "event_id": "string",
+    "city": "string",
+    "road_id": "integer",
+    "road_display_name": "string",
+    "event_type_label": "string",
+    "severity_label": "string",
+    "confidence": "float [0,1]",
+    "event_to_road_distance_m": "float >= 0",
+    "alert_score": "float [0,100]",
+    "alert_level": [
+      "CRITICAL",
+      "HIGH",
+      "MEDIUM",
+      "LOW"
+    ],
+    "dashboard_status": [
+      "ACTION_REQUIRED",
+      "INFORMATIONAL"
+    ],
+    "historical_profile_available": "boolean",
+    "alert_context_status": "string",
+    "map_latitude": "float [-90,90]",
+    "map_longitude": "float [-180,180]"
+  },
+  "semantics": {
+    "current_event_evidence": true,
+    "historical_risk_separate": true,
+    "crime_remains_contextual": true,
+    "no_artificial_road_level_attribution": true
+  }
+}

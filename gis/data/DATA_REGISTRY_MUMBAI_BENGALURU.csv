@@ -1,0 +1,15 @@
+dataset_id,dataset_name,source,year,geographic_scope,granularity,raw_filename,status,used_for,limitations
+NCRB_IPC_STATE_2023,IPC Crimes 2023,NCRB/data.gov.in,2023,Maharashtra; Karnataka,State/UT,NCRB_IPC_STATE_2023.csv,TO_VALIDATE,Historical crime context,State-level only
+NCRB_SLL_STATE_2023,SLL Crimes 2023,NCRB/data.gov.in,2023,Maharashtra; Karnataka,State/UT,NCRB_SLL_STATE_2023.csv,TO_VALIDATE,Historical SLL crime context,State-level only
+NCRB_WOMEN_STATE_2023,Crimes Against Women 2023,NCRB/data.gov.in,2023,Maharashtra; Karnataka,State/UT,NCRB_WOMEN_STATE_2023.csv,TO_VALIDATE,Women-related crime context,State-level only
+NCRB_CHILDREN_STATE_2023,Crimes Against Children 2023,NCRB/data.gov.in,2023,Maharashtra; Karnataka,State/UT,NCRB_CHILDREN_STATE_2023.csv,TO_VALIDATE,Children-related crime context,State-level only
+NCRB_ACCIDENTS_ROAD_CLASS_2023,Road Accidents by Road Classification 2023,NCRB/data.gov.in,2023,Maharashtra; Karnataka,State/UT/City/Road classification,NCRB_ACCIDENTS_ROAD_CLASS_2023.csv,TO_VALIDATE,Accident and road-class context,City-level availability to verify
+NCRB_ACCIDENTS_MONTHLY_2023,Traffic Accidents by Month 2023,NCRB/data.gov.in,2023,Maharashtra; Karnataka,State/UT/City/Month,NCRB_ACCIDENTS_MONTHLY_2023.csv,TO_VALIDATE,Temporal accident context,City-level availability to verify
+CENSUS_POPULATION_2011,Census 2011 Population,Census of India,2011,Maharashtra; Karnataka,District/lower levels,CENSUS_POPULATION_2011.xlsx,TO_VALIDATE,Population context,2011 baseline
+DISTRICT_BOUNDARIES_2020,India District Boundaries 2020,abhatia08/GitHub,2020,Maharashtra; Karnataka,District,INDIA_DISTRICTS_2020.shp + companions,TO_VALIDATE,District GIS reference,Does not replace city/MMR/BBMP boundaries
+OSM_WESTERN_ZONE_LATEST,OSM Western Zone,Geofabrik,CURRENT,Maharashtra,Road network,OSM_WESTERN_ZONE_LATEST.osm.pbf,TO_VALIDATE,Mumbai roads,Clip to Mumbai extents
+OSM_CENTRAL_ZONE_LATEST,OSM Central Zone,Geofabrik,CURRENT,Karnataka/coverage to verify,Road network,OSM_CENTRAL_ZONE_LATEST.osm.pbf,TO_VALIDATE,Bengaluru roads,Verify Karnataka coverage
+TEAM_CAMERAS,Camera Registry,VIGRAH team,CURRENT,Mumbai; Bengaluru,Camera points,cameras_<version>.*,WAITING_FOR_TEAM,Camera spatial context,Schema pending
+TEAM_TRACKS,Entity Tracks,VIGRAH team,CURRENT,Mumbai; Bengaluru,Track/timestamp/camera,tracks_<version>.*,WAITING_FOR_TEAM,Connected-event context,Schema pending
+TEAM_EVENTS_BENGALURU,Connected Events - Bengaluru,VIGRAH team,CURRENT,Bengaluru,Event/point/timeline,connected_events_<version>.*,WAITING_FOR_TEAM,Primary real-data input,"~1,541 records"
+TEAM_EVENTS_MUMBAI,Connected Events - Mumbai,VIGRAH team,CURRENT,Mumbai,Event/point/timeline,connected_events_synthetic_<version>.*,WAITING_FOR_TEAM,Pipeline/demo input,10 synthetic records; not real-data evaluation

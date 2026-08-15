@@ -1,0 +1,25 @@
+VIGRAH — D3 ALERT GENERATION REPORT
+================================================================================
+
+Input records: 4
+Unique events: 4
+Historical profiles: 0
+No historical profiles: 4
+
+ALERT DISTRIBUTION
+----------------------------------------
+CRITICAL: 1
+HIGH: 1
+MEDIUM: 1
+LOW: 1
+
+METHODOLOGY
+----------------------------------------
+Historical profile available:
+  60% current event evidence
+  40% historical road risk
+
+Historical profile unavailable:
+  100% current event evidence
+
+No road-level historical risk was artificially assigned.

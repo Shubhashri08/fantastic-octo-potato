@@ -1,0 +1,46 @@
+VIGRAH — C3.3 ML RISK PROFILE REPORT
+======================================================================
+Road records: 844
+Anomalous roads: 69
+Critical candidates: 0
+
+ML RISK PROFILE DISTRIBUTION
+ml_risk_profile
+MODERATE_PROFILE           748
+LOW_RISK_PROFILE            80
+ANOMALOUS_LOW_BASELINE       9
+HIGH_RISK_ANOMALOUS          3
+MODERATE_RISK_ANOMALOUS      3
+HIGH_BASELINE_RISK           1
+
+ML PROFILE LEVEL DISTRIBUTION
+ml_profile_level
+LOW         832
+MODERATE      8
+HIGH          4
+
+CITY SUMMARY
+     city  roads  mean_baseline_risk  mean_ml_score  anomalous_roads  high_profile_roads  critical_candidates
+Bengaluru    834           33.355834      28.642544               59                   0                    0
+   Mumbai     10           48.425000      55.441891               10                   4                    0
+
+CITY × ML PROFILE
+     city         ml_risk_profile  roads
+Bengaluru  ANOMALOUS_LOW_BASELINE      6
+Bengaluru        LOW_RISK_PROFILE     80
+Bengaluru        MODERATE_PROFILE    748
+   Mumbai  ANOMALOUS_LOW_BASELINE      3
+   Mumbai      HIGH_BASELINE_RISK      1
+   Mumbai     HIGH_RISK_ANOMALOUS      3
+   Mumbai MODERATE_RISK_ANOMALOUS      3
+
+HIGH BASELINE + ML ANOMALY
+Candidate roads: 3
+
+SEMANTIC INTERPRETATION
+Baseline risk is a contextual benchmark.
+ML anomaly is an unsupervised structural signal.
+Accident data remains contextual.
+Crime data remains contextual.
+ML-enhanced score is a diagnostic prioritization indicator.
+It is NOT a supervised accident/crime probability.

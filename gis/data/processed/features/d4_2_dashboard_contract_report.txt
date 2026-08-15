@@ -1,0 +1,22 @@
+VIGRAH — D4.2 DASHBOARD / API CONTRACT VALIDATION
+============================================================
+
+Input: D:\MITESH PERSONAL\sih\fantastic-octo-potato\gis\data\processed\features\dashboard_alerts.parquet
+Records: 4
+Columns: 24
+
+RESULT: PASS
+
+API endpoints:
+GET /api/alerts
+GET /api/alerts/{alert_id}
+GET /api/alerts/summary
+GET /api/alerts/city/{city}
+
+Semantic guarantees:
+- Current event evidence remains separate.
+- Historical risk remains contextual.
+- Crime remains non-road-level.
+- No historical risk is artificially assigned.
+
+Dashboard dataset is API-ready.

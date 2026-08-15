@@ -1,0 +1,11 @@
+VIGRAH — PHASE A VALIDATION REPORT
+============================================================
+Total CCTV records: 1551
+Unique cameras: 1551
+Matched roads: 1551
+Unmatched roads: 0
+Mean distance: 38.87 m
+Median distance: 3.41 m
+Maximum distance: 2314.12 m
+Review matches (>50m): 96
+Verdict: PHASE A PASSED — WITH QA FLAGS

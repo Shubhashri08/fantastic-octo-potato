@@ -1,0 +1,18 @@
+VIGRAH — B4.4 CRIME FEATURE VALIDATION
+============================================================
+Input records: 1,551
+Expected records: 1,551
+Record count: PASS
+Crime context completeness: PASS
+City → State mapping: PASS
+Crime year: 2023
+Crime data level: state_context
+Provenance: NCRB
+Spatial scope: state_level_context
+Road-level attribution: FALSE
+
+     city  cctv_records       state  crime_year  women_crime  children_crime
+Bengaluru          1541   Karnataka        2023      20336.0          8929.0
+   Mumbai            10 Maharashtra        2023      47101.0         22390.0
+
+B4.4 VALIDATION: PASS

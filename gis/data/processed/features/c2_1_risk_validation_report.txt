@@ -1,0 +1,14 @@
+VIGRAH — C2.1 BASELINE RISK VALIDATION
+============================================================
+Road records: 844
+Unique risk scores: 34
+
+     city  roads  unique_scores  minimum_score  maximum_score  mean_score  standard_deviation
+Bengaluru    834             31           5.25           35.0   33.355834            5.265472
+   Mumbai     10              3          26.00           65.0   48.425000           17.022473
+
+Methodological note:
+Accident and NCRB crime values are contextual city/state indicators.
+They are not road-level historical incident counts.
+
+Bengaluru risk discrimination shows variation.

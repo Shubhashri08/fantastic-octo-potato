@@ -1,0 +1,22 @@
+VIGRAH — D4.1 DASHBOARD ALERT VALIDATION REPORT
+================================================================================
+
+Input records: 4
+Output records: 4
+
+ALERT DISTRIBUTION
+----------------------------------------
+CRITICAL: 1
+HIGH: 1
+MEDIUM: 1
+LOW: 1
+
+DASHBOARD STATUS
+----------------------------------------
+ACTION_REQUIRED: 3
+INFORMATIONAL: 1
+
+SEMANTIC GUARANTEE
+----------------------------------------
+Historical risk is never artificially assigned to events without a C3 profile.
+Current event evidence remains distinct from historical context.

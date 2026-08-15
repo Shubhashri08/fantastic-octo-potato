@@ -1,0 +1,38 @@
+[
+  {
+    "event_id": "TEST-EVT-001",
+    "timestamp": "2026-08-19T00:30:00",
+    "latitude": 19.0176,
+    "longitude": 72.8562,
+    "event_type": "suspicious_activity",
+    "severity": "high",
+    "confidence": 0.91
+  },
+  {
+    "event_id": "TEST-EVT-002",
+    "timestamp": "2026-08-19T01:10:00",
+    "latitude": 19.0188,
+    "longitude": 72.8478,
+    "event_type": "crowd_anomaly",
+    "severity": "medium",
+    "confidence": 0.84
+  },
+  {
+    "event_id": "TEST-EVT-003",
+    "timestamp": "2026-08-19T02:15:00",
+    "latitude": 12.9716,
+    "longitude": 77.5946,
+    "event_type": "suspicious_activity",
+    "severity": "high",
+    "confidence": 0.88
+  },
+  {
+    "event_id": "TEST-EVT-004",
+    "timestamp": "2026-08-19T03:00:00",
+    "latitude": 12.9750,
+    "longitude": 77.5990,
+    "event_type": "vehicle_anomaly",
+    "severity": "low",
+    "confidence": 0.76
+  }
+]
