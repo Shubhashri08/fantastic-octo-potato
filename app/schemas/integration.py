@@ -1,16 +1,12 @@
 from datetime import datetime
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
-
-class LocationSchema(BaseModel):
-    latitude: float = Field(..., ge=-90.0, le=90.0)
-    longitude: float = Field(..., ge=-180.0, le=180.0)
+from app.schemas.alert import GeoJsonPointSchema
 
 # Layer 3 / 2 - Entity Tracking History
 class EntityHistoryPoint(BaseModel):
     timestamp: datetime
-    latitude: float
-    longitude: float
+    geom: GeoJsonPointSchema = Field(..., description="Sighting location coordinates in [longitude, latitude] order")
     camera_id: str
 
 class EntityHistoryResponse(BaseModel):
@@ -28,11 +24,11 @@ class EventTimelineResponse(BaseModel):
     event_id: str
     timeline: List[TimelineEventPoint] = Field(default_factory=list)
 
-# Layer 3 - Event Entities
+# Layer 3 - Event Entities Mapping
 class AssociatedEntity(BaseModel):
-    entity_id: str
-    entity_type: str
-    confidence: float
+    track_id: str = Field(..., description="Unique tracking entity identifier")
+    association_type: str = Field(..., description="E.g., primary_subject, background_object")
+    proximity_meters: float = Field(..., description="Distance tolerance in meters")
 
 class EventEntitiesResponse(BaseModel):
     event_id: str
@@ -54,14 +50,12 @@ class NearbyIncidentPoint(BaseModel):
     event_id: str
     event_type: str
     timestamp: datetime
-    latitude: float
-    longitude: float
+    geom: GeoJsonPointSchema = Field(..., description="Event location coordinates in [longitude, latitude] order")
     severity: str
     distance_meters: float
 
 class NearbyIncidentsResponse(BaseModel):
-    latitude: float
-    longitude: float
+    geom: GeoJsonPointSchema = Field(..., description="Coordinates lookup location in [longitude, latitude] order")
     radius_meters: float
     incidents: List[NearbyIncidentPoint] = Field(default_factory=list)
 
@@ -72,18 +66,18 @@ class HistoricalPatternPoint(BaseModel):
     avg_risk_score: float
 
 class HistoricalPatternResponse(BaseModel):
-    location: LocationSchema
+    geom: GeoJsonPointSchema = Field(..., description="Coordinates lookup location in [longitude, latitude] order")
     dominant_incident_type: str
     peak_hours: str
     patterns: List[HistoricalPatternPoint] = Field(default_factory=list)
 
 # Layer 4 - GIS / Location Context
 class GISLocationContextResponse(BaseModel):
-    location: LocationSchema
+    geom: GeoJsonPointSchema = Field(..., description="Coordinates lookup location in [longitude, latitude] order")
     risk_score: float = Field(..., ge=0.0, le=1.0)
     hotspot: bool
     historical_incident_count: int
     dominant_incident_type: str
     peak_time: str
     gis_region_name: str
-    boundary_coordinates: Optional[List[LocationSchema]] = None
+    boundary_coordinates: Optional[List[GeoJsonPointSchema]] = None

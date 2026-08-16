@@ -2,10 +2,9 @@ import pytest
 from datetime import datetime
 from httpx import AsyncClient
 
-# Test payloads helper
+# Test payloads helper conforming to updated canonical contract schemas
 def get_sample_ingest_payload(
-    event_id="EVT_999", 
-    correlation_id="CORR_111", 
+    event_id="848da075-8178-4e89-be2a-4a25be256d01",
     lat=19.123, 
     lon=72.456, 
     confidence=0.95, 
@@ -14,41 +13,36 @@ def get_sample_ingest_payload(
     return {
         "event": {
             "event_id": event_id,
+            "camera_id": "CAM_03",
             "event_type": "accident",
             "timestamp": datetime.utcnow().isoformat() + "Z",
-            "location": {"latitude": lat, "longitude": lon},
+            "geom": {
+                "type": "Point",
+                "coordinates": [lon, lat]
+            },
             "confidence": confidence,
             "severity": severity,
-            "entities": ["vehicle_V17"],
-            "cameras": ["CAM_03"],
-            "correlation_id": correlation_id
+            "bbox": [100.0, 50.0, 200.0, 150.0],
+            "is_verified": False
         },
         "context": {
-            "location": {"latitude": lat, "longitude": lon},
+            "geom": {
+                "type": "Point",
+                "coordinates": [lon, lat]
+            },
             "risk_score": 0.8,
             "hotspot": True,
             "historical_incident_count": 5,
             "dominant_incident_type": "accident",
-            "peak_time": "18:00-22:00",
-            "correlation_id": correlation_id
+            "peak_time": "18:00-22:00"
         }
     }
 
 @pytest.mark.asyncio
-async def test_alert_consistency_validation_correlation_mismatch(client: AsyncClient):
-    payload = get_sample_ingest_payload()
-    # Induce mismatch
-    payload["context"]["correlation_id"] = "DIFFERENT_CORR"
-    
-    response = await client.post("/alerts/evaluate", json=payload)
-    assert response.status_code == 400
-    assert "Correlation ID mismatch" in response.json()["detail"]
-
-@pytest.mark.asyncio
 async def test_alert_consistency_validation_location_tolerance(client: AsyncClient):
     payload = get_sample_ingest_payload()
-    # Induce location discrepancy beyond 0.001 tolerance (e.g. 0.002)
-    payload["context"]["location"]["latitude"] = 19.125
+    # Induce location discrepancy beyond 0.001 tolerance on latitude coordinates (index 1)
+    payload["context"]["geom"]["coordinates"][1] = 19.125
     
     response = await client.post("/alerts/evaluate", json=payload)
     assert response.status_code == 400
@@ -57,26 +51,29 @@ async def test_alert_consistency_validation_location_tolerance(client: AsyncClie
 @pytest.mark.asyncio
 async def test_alert_engine_priority_rules(client: AsyncClient):
     # Rule 1: confidence >= 0.85 AND severity = HIGH -> HIGH
-    p1 = get_sample_ingest_payload(event_id="E_H", confidence=0.88, severity="HIGH")
+    p1 = get_sample_ingest_payload(event_id="111da075-8178-4e89-be2a-4a25be256d11", confidence=0.88, severity="HIGH")
     res1 = await client.post("/alerts/evaluate", json=p1)
     assert res1.status_code == 201
     assert res1.json()["priority"] == "HIGH"
+    assert res1.json()["camera_id"] == "CAM_03"
+    assert res1.json()["bbox"] == [100.0, 50.0, 200.0, 150.0]
+    assert res1.json()["is_verified"] is False
 
     # Rule 2: confidence >= 0.70 -> MEDIUM (even if severity is LOW)
-    p2 = get_sample_ingest_payload(event_id="E_M", confidence=0.72, severity="LOW")
+    p2 = get_sample_ingest_payload(event_id="222da075-8178-4e89-be2a-4a25be256d22", confidence=0.72, severity="LOW")
     res2 = await client.post("/alerts/evaluate", json=p2)
     assert res2.status_code == 201
     assert res2.json()["priority"] == "MEDIUM"
 
     # Rule 3: otherwise -> LOW
-    p3 = get_sample_ingest_payload(event_id="E_L", confidence=0.65, severity="HIGH")
+    p3 = get_sample_ingest_payload(event_id="333da075-8178-4e89-be2a-4a25be256d33", confidence=0.65, severity="HIGH")
     res3 = await client.post("/alerts/evaluate", json=p3)
     assert res3.status_code == 201
     assert res3.json()["priority"] == "LOW"
 
 @pytest.mark.asyncio
 async def test_alert_evaluation_idempotency(client: AsyncClient):
-    payload = get_sample_ingest_payload(event_id="EVT_IDEMPOTENT_TEST", correlation_id="CORR_IDEMP")
+    payload = get_sample_ingest_payload(event_id="444da075-8178-4e89-be2a-4a25be256d44")
     
     # First submit -> 201 Created
     response1 = await client.post("/alerts/evaluate", json=payload)
@@ -89,9 +86,17 @@ async def test_alert_evaluation_idempotency(client: AsyncClient):
     assert response2.json()["id"] == id1
 
 @pytest.mark.asyncio
+async def test_alert_evaluation_with_correlation_header(client: AsyncClient):
+    payload = get_sample_ingest_payload(event_id="999da075-8178-4e89-be2a-4a25be256d99")
+    headers = {"X-Correlation-ID": "TEST_HEADER_CORR_ID_123"}
+    response = await client.post("/alerts/evaluate", json=payload, headers=headers)
+    assert response.status_code == 201
+    assert response.json()["correlation_id"] == "TEST_HEADER_CORR_ID_123"
+
+@pytest.mark.asyncio
 async def test_list_alerts_rbac(client: AsyncClient, test_users: dict):
     # Ingest an alert first so list is not empty
-    payload = get_sample_ingest_payload(event_id="EVT_LIST_TEST", correlation_id="CORR_LIST")
+    payload = get_sample_ingest_payload(event_id="555da075-8178-4e89-be2a-4a25be256d55")
     await client.post("/alerts/evaluate", json=payload)
 
     # Operator token -> VIEW_ALERTS is allowed
@@ -100,7 +105,7 @@ async def test_list_alerts_rbac(client: AsyncClient, test_users: dict):
     assert response.status_code == 200
     assert len(response.json()) > 0
 
-    # Analyst token -> VIEW_ALERTS is forbidden (Analyst has VIEW_GIS, VIEW_HISTORICAL, VIEW_RISK only)
+    # Analyst token -> VIEW_ALERTS is forbidden
     headers = {"Authorization": f"Bearer {test_users['analyst']['token']}"}
     response = await client.get("/alerts", headers=headers)
     assert response.status_code == 403
@@ -108,7 +113,7 @@ async def test_list_alerts_rbac(client: AsyncClient, test_users: dict):
 @pytest.mark.asyncio
 async def test_alert_status_transition_rbac(client: AsyncClient, test_users: dict):
     # Ingest an alert to test
-    payload = get_sample_ingest_payload(event_id="EVT_TRANSITION_TEST", correlation_id="CORR_TRANS")
+    payload = get_sample_ingest_payload(event_id="666da075-8178-4e89-be2a-4a25be256d66")
     res = await client.post("/alerts/evaluate", json=payload)
     alert_id = res.json()["id"]
 

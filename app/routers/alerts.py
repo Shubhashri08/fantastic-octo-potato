@@ -21,6 +21,7 @@ router = APIRouter(prefix="/alerts", tags=["Alert Engine"])
 async def evaluate_alert(
     payload: AlertEvaluationRequest,
     response: Response,
+    req: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -28,6 +29,8 @@ async def evaluate_alert(
     creates the Alert record, and registers an audit log entry.
     Enforces validation consistency and idempotency (returning existing alert if event_id matches).
     """
+    import uuid
+
     # 1. Validate data consistency between Layer 3 and Layer 4 inputs
     try:
         AlertEngine.validate_consistency(payload)
@@ -37,8 +40,11 @@ async def evaluate_alert(
             detail=str(e)
         )
 
+    # Extract correlation ID from transport headers
+    correlation_id = req.headers.get("X-Correlation-ID", f"CORR_L5_{uuid.uuid4().hex[:12]}")
+
     # Idempotency Check: return existing alert if already ingested
-    existing = await get_alert_by_event_id(db, payload.event.event_id)
+    existing = await get_alert_by_event_id(db, str(payload.event.event_id))
     if existing:
         response.status_code = status.HTTP_200_OK
         return existing
@@ -47,7 +53,7 @@ async def evaluate_alert(
     priority = AlertEngine.evaluate_priority(payload)
 
     # 3. Persist alert atomically (idempotent creation)
-    alert = await create_alert(db=db, request=payload, priority=priority)
+    alert = await create_alert(db=db, request=payload, priority=priority, correlation_id=correlation_id)
 
     # 4. Record audit log
     await create_audit_log(

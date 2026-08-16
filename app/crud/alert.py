@@ -34,7 +34,8 @@ async def get_alerts(
 async def create_alert(
     db: AsyncSession,
     request: AlertEvaluationRequest,
-    priority: str
+    priority: str,
+    correlation_id: str
 ) -> Alert:
     """
     Creates a new Alert.
@@ -44,21 +45,26 @@ async def create_alert(
     context = request.context
 
     # 1. Double check existence to save transaction rollback overhead in non-race scenarios
-    existing = await get_alert_by_event_id(db, event.event_id)
+    existing = await get_alert_by_event_id(db, str(event.event_id))
     if existing:
         return existing
 
     # 2. Prepare new alert record
+    # Coordinates in GeoJSON Point format: [longitude, latitude]
+    lon = event.geom.coordinates[0]
+    lat = event.geom.coordinates[1]
+
     db_alert = Alert(
-        event_id=event.event_id,
+        event_id=str(event.event_id),
+        camera_id=event.camera_id,
         event_type=event.event_type,
         timestamp=event.timestamp.replace(tzinfo=None), # Remove tzinfo for database compatibility
-        latitude=event.location.latitude,
-        longitude=event.location.longitude,
+        latitude=lat,
+        longitude=lon,
         confidence=event.confidence,
         severity=event.severity.upper(),
-        entities=event.entities,
-        cameras=event.cameras,
+        bbox=event.bbox,
+        is_verified=event.is_verified,
         
         risk_score=context.risk_score,
         hotspot=context.hotspot,
@@ -68,7 +74,7 @@ async def create_alert(
         
         priority=priority.upper(),
         status="NEW",
-        correlation_id=event.correlation_id
+        correlation_id=correlation_id
     )
 
     db.add(db_alert)
@@ -79,7 +85,7 @@ async def create_alert(
     except IntegrityError:
         # Atomic lock triggered: duplicate insert occurred concurrently. Rollback and fetch original.
         await db.rollback()
-        existing = await get_alert_by_event_id(db, event.event_id)
+        existing = await get_alert_by_event_id(db, str(event.event_id))
         if existing:
             return existing
         raise

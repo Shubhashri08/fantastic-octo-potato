@@ -21,7 +21,14 @@ async def test_investigation_query_flow_success(client: AsyncClient, test_users:
         entity_id="vehicle_V17",
         entity_type="vehicle",
         history=[
-            {"timestamp": "2026-08-16T20:31:00Z", "latitude": 19.123, "longitude": 72.456, "camera_id": "CAM_03"}
+            {
+                "timestamp": "2026-08-16T20:31:00Z",
+                "geom": {
+                    "type": "Point",
+                    "coordinates": [72.456, 19.123]
+                },
+                "camera_id": "CAM_03"
+            }
         ]
     )
 

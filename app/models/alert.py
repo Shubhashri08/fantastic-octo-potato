@@ -11,14 +11,15 @@ class Alert(Base):
     
     # Ingested Layer 3 Event details
     event_id = Column(String(100), unique=True, nullable=False, index=True) # Unique constraint ensures idempotency
+    camera_id = Column(String(50), nullable=False)
     event_type = Column(String(100), nullable=False)
     timestamp = Column(DateTime, nullable=False)
     latitude = Column(Float, nullable=False)
     longitude = Column(Float, nullable=False)
     confidence = Column(Float, nullable=False)
     severity = Column(String(50), nullable=False)
-    entities = Column(JSON, nullable=False) # List of tracking entity IDs
-    cameras = Column(JSON, nullable=False) # List of camera source IDs
+    bbox = Column(JSON, nullable=True) # Optional bounding box coordinates
+    is_verified = Column(Boolean, default=False, nullable=False)
     
     # Ingested Layer 4 Context details
     risk_score = Column(Float, nullable=False)

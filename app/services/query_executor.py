@@ -1,5 +1,5 @@
 import logging
-from typing import Dict, Any
+from typing import Dict, Any, Tuple
 from app.integrations.layer3_client import Layer3Client
 from app.integrations.layer4_client import Layer4Client
 from app.services.llm_service import ExtractedIntent
@@ -70,15 +70,14 @@ class QueryExecutor:
             return result.model_dump(mode="json")
 
         elif op == "GET_NEARBY_INCIDENTS":
+            lat, lon = self._extract_coordinates(params)
+
             try:
-                lat = float(params.get("latitude"))
-                lon = float(params.get("longitude"))
                 # Default radius to 500 meters if not provided
                 radius = float(params.get("radius_meters", 500.0))
             except (TypeError, ValueError):
-                raise ValidationError("GET_NEARBY_INCIDENTS requires numeric 'latitude', 'longitude', and 'radius_meters'.")
+                raise ValidationError("radius_meters must be a numeric value.")
 
-            self._validate_coordinates(lat, lon)
             if radius <= 0:
                 raise ValidationError("radius_meters must be a positive number.")
 
@@ -91,13 +90,7 @@ class QueryExecutor:
             return result.model_dump(mode="json")
 
         elif op == "GET_HISTORICAL_PATTERN":
-            try:
-                lat = float(params.get("latitude"))
-                lon = float(params.get("longitude"))
-            except (TypeError, ValueError):
-                raise ValidationError("GET_HISTORICAL_PATTERN requires numeric 'latitude' and 'longitude'.")
-
-            self._validate_coordinates(lat, lon)
+            lat, lon = self._extract_coordinates(params)
 
             result = await self.layer4_client.get_historical_pattern(
                 latitude=lat, 
@@ -107,13 +100,7 @@ class QueryExecutor:
             return result.model_dump(mode="json")
 
         elif op == "GET_LOCATION_CONTEXT":
-            try:
-                lat = float(params.get("latitude"))
-                lon = float(params.get("longitude"))
-            except (TypeError, ValueError):
-                raise ValidationError("GET_LOCATION_CONTEXT requires numeric 'latitude' and 'longitude'.")
-
-            self._validate_coordinates(lat, lon)
+            lat, lon = self._extract_coordinates(params)
 
             result = await self.layer4_client.get_location_context(
                 latitude=lat, 
@@ -125,7 +112,56 @@ class QueryExecutor:
         else:
             raise ValidationError(f"Operation '{op}' is not supported or recognized.")
 
-    def _validate_coordinates(self, lat: float, lon: float) -> None:
+    def _extract_coordinates(self, params: Dict[str, Any]) -> Tuple[float, float]:
+        """
+        Resiliently extracts latitude and longitude from parameters.
+        Supports both:
+        - flat keys: 'latitude' and 'longitude'
+        - GeoJSON geometry format: {'geom': {'type': 'Point', 'coordinates': [longitude, latitude]}}
+        - Nested location schema: {'location': {'latitude': ..., 'longitude': ...}}
+        """
+        # 1. Check flat fields
+        lat = params.get("latitude")
+        lon = params.get("longitude")
+        if lat is not None and lon is not None:
+            try:
+                lat_f, lon_f = float(lat), float(lon)
+            except (ValueError, TypeError):
+                lat_f, lon_f = None, None
+            if lat_f is not None and lon_f is not None:
+                self._validate_coords(lat_f, lon_f)
+                return lat_f, lon_f
+
+        # 2. Check GeoJSON geom point [longitude, latitude]
+        geom = params.get("geom")
+        if isinstance(geom, dict):
+            coords = geom.get("coordinates")
+            if isinstance(coords, (list, tuple)) and len(coords) >= 2:
+                try:
+                    lon_f, lat_f = float(coords[0]), float(coords[1])
+                except (ValueError, TypeError):
+                    lon_f, lat_f = None, None
+                if lon_f is not None and lat_f is not None:
+                    self._validate_coords(lat_f, lon_f)
+                    return lat_f, lon_f
+
+        # 3. Check nested location object
+        loc = params.get("location")
+        if isinstance(loc, dict):
+            lat = loc.get("latitude")
+            lon = loc.get("longitude")
+            if lat is not None and lon is not None:
+                try:
+                    lat_f, lon_f = float(lat), float(lon)
+                except (ValueError, TypeError):
+                    lat_f, lon_f = None, None
+                if lat_f is not None and lon_f is not None:
+                    self._validate_coords(lat_f, lon_f)
+                    return lat_f, lon_f
+
+        raise ValidationError("Could not extract valid latitude and longitude coordinates.")
+
+    def _validate_coords(self, lat: float, lon: float) -> None:
         """Helper to assert standard geographic coordinate boundaries."""
         if not (-90.0 <= lat <= 90.0):
             raise ValidationError(f"latitude must be between -90 and 90. Received: {lat}")
