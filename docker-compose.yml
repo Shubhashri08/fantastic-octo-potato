@@ -1,0 +1,45 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgis/postgis:15-3.3
+    container_name: vigrah_db
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: vigrah_l5
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build: .
+    container_name: vigrah_backend
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/vigrah_l5
+      - TEST_DATABASE_URL=postgresql+asyncpg://postgres:postgres@db:5432/vigrah_l5_test
+      - JWT_SECRET=super_secret_signing_key_change_me_in_production_1234567890
+      - GEMINI_API_KEY=mock_key_for_testing
+      - GEMINI_MODEL=gemini-1.5-flash
+      - BOOTSTRAP_ADMIN_USER=admin
+      - BOOTSTRAP_ADMIN_PASSWORD=VigrahAdminPassword2026!
+      - LAYER3_BASE_URL=http://layer3-service:8003
+      - LAYER3_CLIENT_TOKEN=layer3_secret_token_abc123
+      - LAYER4_BASE_URL=http://layer4-service:8004
+      - LAYER4_CLIENT_TOKEN=layer4_secret_token_xyz789
+      - INTEGRATION_TIMEOUT_SECONDS=5.0
+      - GEOGRAPHIC_TOLERANCE=0.001
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
