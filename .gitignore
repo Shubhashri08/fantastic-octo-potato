@@ -1,4 +1,4 @@
-# Dependencies
+﻿# Dependencies
 node_modules/
 dist/
 venv/
@@ -10,7 +10,19 @@ __pycache__/
 *.pem
 *.key
 
+# Object Storage (keep locally, never push to GitHub)
+backend/samples/
+backend/sample_media/
+backend/snapshots/
+backend/weights/
+backend/recordings/
+backend/airtlab_targets/
+frontend/public/snapshots/
+*.pt
+*.pth
+*.onnx
+*.bin
+
 # Temporary media & recordings
-backend/recordings/*.mp4
 .tempmediaStorage/
 *.log
