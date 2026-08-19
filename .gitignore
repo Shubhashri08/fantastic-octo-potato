@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+dist/
+venv/
+__pycache__/
+*.pyc
+
+# Secrets & Environment
+.env
+*.pem
+*.key
+
+# Temporary media & recordings
+backend/recordings/*.mp4
+.tempmediaStorage/
+*.log
