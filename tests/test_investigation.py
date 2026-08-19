@@ -35,7 +35,7 @@ async def test_investigation_query_flow_success(client: AsyncClient, test_users:
     # Mock LLM answer generation
     mock_markdown = "### Vehicle History Report\nVehicle **vehicle_V17** was tracked at camera CAM_03 at 8:31 PM."
 
-    token = test_users["investigator"]["token"]
+    token = test_users["user_3"]["token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     # Patch the service calls
@@ -75,7 +75,7 @@ async def test_investigation_query_validation_error(client: AsyncClient, test_us
         parameters={"latitude": 200.0, "longitude": 72.456, "radius_meters": 500} # lat=200 is invalid
     )
 
-    token = test_users["investigator"]["token"]
+    token = test_users["user_3"]["token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     with patch("app.services.llm_service.LlmService.extract_intent", new_callable=AsyncMock) as mock_extract:
@@ -101,7 +101,7 @@ async def test_investigation_query_protection_against_arbitrary_sql(client: Asyn
         parameters={"entity_id": "; DROP TABLE users;"} # Attempted injection
     )
 
-    token = test_users["investigator"]["token"]
+    token = test_users["user_3"]["token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     mock_layer3_response = EntityHistoryResponse(
@@ -137,7 +137,7 @@ async def test_investigation_query_upstream_timeout(client: AsyncClient, test_us
         parameters={"entity_id": "vehicle_V17"}
     )
     
-    token = test_users["investigator"]["token"]
+    token = test_users["user_3"]["token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     with patch("app.services.llm_service.LlmService.extract_intent", new_callable=AsyncMock) as mock_extract, \
@@ -163,7 +163,7 @@ async def test_investigation_query_upstream_connection_failure(client: AsyncClie
         parameters={"entity_id": "vehicle_V17"}
     )
     
-    token = test_users["investigator"]["token"]
+    token = test_users["user_3"]["token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     with patch("app.services.llm_service.LlmService.extract_intent", new_callable=AsyncMock) as mock_extract, \
@@ -189,7 +189,7 @@ async def test_investigation_query_upstream_validation_failure(client: AsyncClie
         parameters={"entity_id": "vehicle_V17"}
     )
     
-    token = test_users["investigator"]["token"]
+    token = test_users["user_3"]["token"]
     headers = {"Authorization": f"Bearer {token}"}
 
     with patch("app.services.llm_service.LlmService.extract_intent", new_callable=AsyncMock) as mock_extract, \

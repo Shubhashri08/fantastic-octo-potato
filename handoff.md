@@ -31,7 +31,7 @@ The Layer 5 RESPOND backend serves as the decision support center for VIGRAH AI.
     * `audit.py`: SQLAlchemy ORM model for Audit trails
     * `base.py`: Declares base metadata object
     * `investigation.py`: SQLAlchemy ORM model for AI query traces and evidence snapshots
-    * `user.py`: SQLAlchemy ORM models for Users, Roles, and junction mappings
+    * `user.py`: SQLAlchemy ORM model for Users
   * `routers/`
     * `alerts.py`: Alert endpoints (ingest evaluation, listing, updates)
     * `auth.py`: Authentication session endpoints (login and profile check)
@@ -96,12 +96,6 @@ The Layer 5 RESPOND backend serves as the decision support center for VIGRAH AI.
     "id": "u487da075-8178-4e89-be2a-4a25be256d01",
     "username": "operator_demo",
     "is_active": true,
-    "role_id": 2,
-    "role": {
-      "id": 2,
-      "name": "OPERATOR",
-      "description": "Default Operator role"
-    },
     "created_at": "2026-08-16T20:30:00"
   }
   ```
@@ -174,12 +168,12 @@ The Layer 5 RESPOND backend serves as the decision support center for VIGRAH AI.
 * **Error (HTTP 400 Bad Request)**: Geographic tolerance exceeded.
 
 #### GET `/alerts`
-* **Auth**: Authenticated. Requires `VIEW_ALERTS` permission.
+* **Auth**: Authenticated.
 * **Params**: `status` (NEW, ACKNOWLEDGED, RESOLVED), `priority` (HIGH, MEDIUM, LOW), `skip`, `limit`
 * **Response (HTTP 200)**: List of `AlertResponse` items
 
 #### PATCH `/alerts/{alert_id}`
-* **Auth**: Authenticated. Requires `ACKNOWLEDGE_ALERTS` permission (or `ADMIN` role).
+* **Auth**: Authenticated.
 * **Request Body**:
   ```json
   {
@@ -189,7 +183,7 @@ The Layer 5 RESPOND backend serves as the decision support center for VIGRAH AI.
 * **Response (HTTP 200)**: Updated `AlertResponse` mapping user ID in `acknowledged_by`/`resolved_by` and stamping timing attributes.
 
 #### POST `/investigation/query`
-* **Auth**: Authenticated. Requires `ASK_QUESTIONS` permission.
+* **Auth**: Authenticated.
 * **Request Body** *(Note: The values below are illustrative examples only and not production data)*:
   ```json
   {
@@ -245,12 +239,6 @@ export interface UserResponse {
   id: string;
   username: string;
   is_active: boolean;
-  role_id: number;
-  role?: {
-    id: number;
-    name: "ADMIN" | "OPERATOR" | "INVESTIGATOR" | "ANALYST";
-    description: string;
-  };
   created_at: string;
 }
 
@@ -328,7 +316,7 @@ The frontend UI must track state transitions accurately:
 const response = await fetch('http://localhost:8000/alerts?status=NEW', {
   headers: { 'Authorization': `Bearer ${token}` }
 });
-if (response.status === 403) console.error("Permission Denied");
+if (response.status === 401) console.error("Unauthorized session");
 const alerts = await response.json();
 ```
 
@@ -357,11 +345,7 @@ const alerts = await response.json();
 ## 6. 🛡️ Authentication & Security
 
 * **JWT Verification**: Bearer tokens are signed via HS256 utilizing `JWT_SECRET`. Tokens expire after 60 minutes.
-* **RBAC Controls**: The endpoints evaluate required permissions using `require_permission`. The default roles are:
-  * `ADMIN`: Access to all permissions.
-  * `OPERATOR`: Holds `VIEW_ALERTS`, `ACKNOWLEDGE_ALERTS`, `VIEW_INCIDENTS`.
-  * `INVESTIGATOR`: Holds `VIEW_ALERTS`, `SEARCH_ENTITIES`, `ASK_QUESTIONS`, `VIEW_RECONSTRUCTION`.
-  * `ANALYST`: Holds `VIEW_GIS`, `VIEW_HISTORICAL`, `VIEW_RISK`.
+* **Authorization Model**: A single-role authentication model is used. All endpoints require a valid authenticated user session (verified via JWT Bearer Token). Distinctions between roles and permissions have been removed.
 * **CORS policy**: Configured globally in `main.py` using `allow_origins=["*"]`.
 * **LLM Safety and SQL Protection**:
   * The natural language question never touches database query interpreters directly.
@@ -375,10 +359,7 @@ const alerts = await response.json();
 
 * **Database Technology**: PostgreSQL (with PostGIS extensions).
 * **Tables schema**:
-  * `users`: `id` (String(36) PK), `username` (String(100) UNIQUE), `hashed_password` (String(255)), `role_id` (Integer FK), `is_active` (Boolean).
-  * `roles`: `id` (Integer PK), `name` (String(50) UNIQUE), `description` (String(255)).
-  * `permissions`: `id` (Integer PK), `name` (String(100) UNIQUE).
-  * `role_permissions` (Junction Table): `role_id` (FK), `permission_id` (FK).
+  * `users`: `id` (String(36) PK), `username` (String(100) UNIQUE), `hashed_password` (String(255)), `is_active` (Boolean).
   * `alerts`: `id` (String(36) PK), `event_id` (String(100) UNIQUE), `camera_id` (String(50)), `event_type` (String(100)), `timestamp` (DateTime), `latitude` (Float), `longitude` (Float), `confidence` (Float), `severity` (String(50)), `bbox` (JSON - maps to native `JSON` type, not `JSONB`), `is_verified` (Boolean), `risk_score` (Float), `hotspot` (Boolean), `historical_incident_count` (Integer), `dominant_incident_type` (String(100)), `peak_time` (String(50)), `priority` (String(50)), `status` (String(50)), `correlation_id` (String(100) Index), `acknowledged_by` (String(36) FK), `resolved_by` (String(36) FK).
   * `investigation_queries`: `id` (String(36) PK), `user_id` (String(36) FK), `user_question` (Text), `llm_intent` (JSON - maps to native `JSON` type, not `JSONB`), `validation_status` (String(50)), `query_executed` (String(255)), `verified_data` (JSON - maps to native `JSON` type, not `JSONB`), `llm_response` (Text).
   * `audit_logs`: `id` (String(36) PK), `user_id` (String(36)), `action` (String(100) Index), `details` (JSON - maps to native `JSON` type, not `JSONB`), `ip_address` (String(45)), `timestamp` (DateTime).
@@ -418,7 +399,7 @@ const alerts = await response.json();
 
 ## 10. 🧪 Testing & Verification
 
-* **Unit Tests**: Cover JWT auth, RBAC permissions checks, alert consistency validation, LLM intent validator checks, and client timeout simulation checks.
+* **Unit Tests**: Cover JWT auth, alert consistency validation, LLM intent validator checks, and client timeout simulation checks.
 * **PostgreSQL Integration Tests**: Live DB testing evaluates unique index constraints and `ST_DWithin` PostGIS functions.
 * **Verification Status**:
   * SQLite/Mock unit tests: **18 Passed** (100% Success)
@@ -464,4 +445,4 @@ const alerts = await response.json();
 - [ ] Implement error states: Handle API gateways timeout (`504`) or connections down (`502`) gracefully.
 - [ ] Implement map/geospatial visualization: Display marker layers on Mapbox/Leaflet using the coordinate attributes.
 - [ ] Implement timeline: Render historical event chronologies.
-- [ ] Implement permission-aware UI: Show or hide action panels according to JWT roles definitions.
+- [ ] Implement user session verification: Redirect user to login page if authentication fails or expires.

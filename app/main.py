@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from app.database import engine, Base, async_session_maker
-from app.crud.user import seed_rbac
+from app.crud.user import seed_admin
 from app.routers import auth, alerts, investigation, users
 
 # Setup logger
@@ -17,9 +17,9 @@ async def lifespan(app: FastAPI):
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
-    logger.info("Seeding RBAC configurations & bootstrap administrator...")
+    logger.info("Seeding bootstrap administrator...")
     async with async_session_maker() as session:
-        await seed_rbac(session)
+        await seed_admin(session)
     
     logger.info("Layer 5 Backend initialization complete.")
     yield

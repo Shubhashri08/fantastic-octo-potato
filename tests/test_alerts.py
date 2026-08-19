@@ -94,38 +94,32 @@ async def test_alert_evaluation_with_correlation_header(client: AsyncClient):
     assert response.json()["correlation_id"] == "TEST_HEADER_CORR_ID_123"
 
 @pytest.mark.asyncio
-async def test_list_alerts_rbac(client: AsyncClient, test_users: dict):
+async def test_list_alerts_authenticated(client: AsyncClient, test_users: dict):
     # Ingest an alert first so list is not empty
     payload = get_sample_ingest_payload(event_id="555da075-8178-4e89-be2a-4a25be256d55")
     await client.post("/alerts/evaluate", json=payload)
 
-    # Operator token -> VIEW_ALERTS is allowed
-    headers = {"Authorization": f"Bearer {test_users['operator']['token']}"}
+    # Any authenticated token (e.g. user_2 or user_4) can view alerts
+    headers = {"Authorization": f"Bearer {test_users['user_2']['token']}"}
     response = await client.get("/alerts", headers=headers)
     assert response.status_code == 200
     assert len(response.json()) > 0
 
-    # Analyst token -> VIEW_ALERTS is forbidden
-    headers = {"Authorization": f"Bearer {test_users['analyst']['token']}"}
-    response = await client.get("/alerts", headers=headers)
-    assert response.status_code == 403
+    headers_analyst = {"Authorization": f"Bearer {test_users['user_4']['token']}"}
+    response_analyst = await client.get("/alerts", headers=headers_analyst)
+    assert response_analyst.status_code == 200
 
 @pytest.mark.asyncio
-async def test_alert_status_transition_rbac(client: AsyncClient, test_users: dict):
+async def test_alert_status_transition_authenticated(client: AsyncClient, test_users: dict):
     # Ingest an alert to test
     payload = get_sample_ingest_payload(event_id="666da075-8178-4e89-be2a-4a25be256d66")
     res = await client.post("/alerts/evaluate", json=payload)
     alert_id = res.json()["id"]
 
-    # Analyst token (no permission) updates status -> 403
-    headers_analyst = {"Authorization": f"Bearer {test_users['analyst']['token']}"}
+    # Any authenticated token can update status successfully
+    headers_analyst = {"Authorization": f"Bearer {test_users['user_4']['token']}"}
     patch_res1 = await client.patch(f"/alerts/{alert_id}", json={"status": "ACKNOWLEDGED"}, headers=headers_analyst)
-    assert patch_res1.status_code == 403
-
-    # Operator token (has ACKNOWLEDGE_ALERTS permission) updates status -> 200
-    headers_operator = {"Authorization": f"Bearer {test_users['operator']['token']}"}
-    patch_res2 = await client.patch(f"/alerts/{alert_id}", json={"status": "ACKNOWLEDGED"}, headers=headers_operator)
-    assert patch_res2.status_code == 200
-    assert patch_res2.json()["status"] == "ACKNOWLEDGED"
-    assert patch_res2.json()["acknowledged_by"] is not None
-    assert patch_res2.json()["acknowledged_at"] is not None
+    assert patch_res1.status_code == 200
+    assert patch_res1.json()["status"] == "ACKNOWLEDGED"
+    assert patch_res1.json()["acknowledged_by"] is not None
+    assert patch_res1.json()["acknowledged_at"] is not None

@@ -13,7 +13,7 @@ settings.DATABASE_URL = TEST_DATABASE_URL
 
 from app.main import app
 from app.database import Base, get_db
-from app.crud.user import seed_rbac, create_user
+from app.crud.user import seed_admin, create_user
 from app.schemas.user import UserCreate
 from app.auth.jwt import create_access_token
 
@@ -38,12 +38,12 @@ def event_loop() -> Generator:
 
 @pytest_asyncio.fixture(scope="session", autouse=True)
 async def init_db() -> AsyncGenerator[None, None]:
-    """Initializes tables and seeds roles/permissions once for the test session."""
+    """Initializes tables and seeds the admin once for the test session."""
     async with test_engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     
     async with TestingSessionLocal() as session:
-        await seed_rbac(session)
+        await seed_admin(session)
         
     yield
     
@@ -76,35 +76,28 @@ async def client(db_session: AsyncSession) -> AsyncGenerator[AsyncClient, None]:
 
 @pytest_asyncio.fixture
 async def test_users(db_session: AsyncSession) -> dict:
-    """Creates a user for each role and returns their access tokens."""
-    # Find role IDs
-    from app.models.user import Role
-    from sqlalchemy.future import select
-    
-    roles_result = await db_session.execute(select(Role))
-    roles = {r.name: r.id for r in roles_result.scalars().all()}
-    
-    # Register user profiles
-    admin = await create_user(
+    """Creates standard test users and returns their access tokens."""
+    # Register user profiles directly as standard users
+    user = await create_user(
         db_session, 
-        UserCreate(username="test_admin", password="password123", role_id=roles["ADMIN"])
+        UserCreate(username="test_user", password="password123")
     )
-    operator = await create_user(
+    user_2 = await create_user(
         db_session, 
-        UserCreate(username="test_operator", password="password123", role_id=roles["OPERATOR"])
+        UserCreate(username="test_user_2", password="password123")
     )
-    investigator = await create_user(
+    user_3 = await create_user(
         db_session, 
-        UserCreate(username="test_investigator", password="password123", role_id=roles["INVESTIGATOR"])
+        UserCreate(username="test_user_3", password="password123")
     )
-    analyst = await create_user(
+    user_4 = await create_user(
         db_session, 
-        UserCreate(username="test_analyst", password="password123", role_id=roles["ANALYST"])
+        UserCreate(username="test_user_4", password="password123")
     )
     
     return {
-        "admin": {"username": "test_admin", "token": create_access_token("test_admin")},
-        "operator": {"username": "test_operator", "token": create_access_token("test_operator")},
-        "investigator": {"username": "test_investigator", "token": create_access_token("test_investigator")},
-        "analyst": {"username": "test_analyst", "token": create_access_token("test_analyst")}
+        "user": {"username": "test_user", "token": create_access_token("test_user")},
+        "user_2": {"username": "test_user_2", "token": create_access_token("test_user_2")},
+        "user_3": {"username": "test_user_3", "token": create_access_token("test_user_3")},
+        "user_4": {"username": "test_user_4", "token": create_access_token("test_user_4")}
     }

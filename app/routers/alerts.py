@@ -11,7 +11,7 @@ from app.crud.alert import (
 )
 from app.crud.audit import create_audit_log
 from app.services.alert_engine import AlertEngine, AlertConsistencyError
-from app.auth.dependencies import get_current_user, require_permission
+from app.auth.dependencies import get_current_user
 from app.schemas.alert import AlertEvaluationRequest, AlertResponse, AlertStatusUpdate
 from app.models.user import User
 
@@ -76,11 +76,11 @@ async def list_alerts(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("VIEW_ALERTS"))
+    current_user: User = Depends(get_current_user)
 ):
     """
     Lists system alerts. Supports filtering by priority and status.
-    Requires VIEW_ALERTS permission.
+    Requires authentication.
     """
     alerts = await get_alerts(db, skip=skip, limit=limit, status=status, priority=priority)
     return alerts
@@ -89,11 +89,11 @@ async def list_alerts(
 async def get_alert(
     alert_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("VIEW_ALERTS"))
+    current_user: User = Depends(get_current_user)
 ):
     """
     Retrieves individual alert details.
-    Requires VIEW_ALERTS permission.
+    Requires authentication.
     """
     alert = await get_alert_by_id(db, alert_id)
     if not alert:
@@ -112,8 +112,7 @@ async def update_alert(
 ):
     """
     Updates individual alert status (NEW -> ACKNOWLEDGED -> RESOLVED).
-    Enforces authorization check:
-    - User must hold the ACKNOWLEDGE_ALERTS permission to acknowledge or resolve an alert.
+    Requires authentication.
     Logs actions in the audit trail.
     """
     alert = await get_alert_by_id(db, alert_id)
@@ -128,16 +127,6 @@ async def update_alert(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Invalid status value. Must be 'NEW', 'ACKNOWLEDGED', or 'RESOLVED'."
-        )
-
-    # Validate permissions dynamically based on status transition
-    user_permissions = {p.name.upper() for p in current_user.role.permissions}
-    is_admin = current_user.role.name.upper() == "ADMIN"
-    
-    if not is_admin and "ACKNOWLEDGE_ALERTS" not in user_permissions:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="You do not have permission to acknowledge or resolve alerts"
         )
 
     updated_alert = await update_alert_status(

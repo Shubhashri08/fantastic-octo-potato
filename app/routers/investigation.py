@@ -18,7 +18,7 @@ from app.integrations.base_client import (
     UpstreamResponseValidationError,
     UpstreamResponseError
 )
-from app.auth.dependencies import require_permission
+from app.auth.dependencies import get_current_user
 from app.schemas.investigation import QueryRequest, QueryResponse
 from app.models.user import User
 
@@ -34,7 +34,7 @@ query_executor = QueryExecutor()
 async def ask_question(
     payload: QueryRequest,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("ASK_QUESTIONS"))
+    current_user: User = Depends(get_current_user)
 ):
     """
     Submits user query to the AI Assistant.
@@ -132,11 +132,11 @@ async def list_queries(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("ASK_QUESTIONS"))
+    current_user: User = Depends(get_current_user)
 ):
     """
     Returns investigation question histories.
-    Requires ASK_QUESTIONS permission.
+    Requires authentication.
     """
     queries = await get_investigation_queries(db, skip=skip, limit=limit)
     return queries
@@ -145,11 +145,11 @@ async def list_queries(
 async def get_query(
     query_id: str,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("ASK_QUESTIONS"))
+    current_user: User = Depends(get_current_user)
 ):
     """
     Retrieves individual query execution trace and snapshots.
-    Requires ASK_QUESTIONS permission.
+    Requires authentication.
     """
     query_record = await get_investigation_query_by_id(db, query_id)
     if not query_record:

@@ -10,20 +10,20 @@ from app.crud.user import (
     update_user
 )
 from app.crud.audit import create_audit_log
-from app.auth.dependencies import require_permission
+from app.auth.dependencies import get_current_user
 from app.schemas.user import UserCreate, UserResponse, UserUpdate
 from app.models.user import User
 
-router = APIRouter(prefix="/users", tags=["User & Role Management"])
+router = APIRouter(prefix="/users", tags=["User Management"])
 
 @router.post("", response_model=UserResponse, status_code=status.HTTP_201_CREATED)
 async def register_user(
     payload: UserCreate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("MANAGE_USERS"))
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Creates a new system user. Requires MANAGE_USERS permission.
+    Creates a new system user. Requires authentication.
     Logs action in audit log.
     """
     existing_user = await get_user_by_username(db, payload.username)
@@ -41,8 +41,7 @@ async def register_user(
         action="USER_CREATE",
         user_id=current_user.id,
         details={
-            "created_username": user.username,
-            "created_role_id": user.role_id
+            "created_username": user.username
         }
     )
 
@@ -53,10 +52,10 @@ async def list_system_users(
     skip: int = 0,
     limit: int = 100,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("MANAGE_USERS"))
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Lists system users. Requires MANAGE_USERS permission.
+    Lists system users. Requires authentication.
     """
     users = await get_users(db, skip=skip, limit=limit)
     return users
@@ -66,10 +65,10 @@ async def update_system_user(
     id: str,
     payload: UserUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: User = Depends(require_permission("MANAGE_USERS"))
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Updates user settings (role or status). Requires MANAGE_USERS permission.
+    Updates user settings (status). Requires authentication.
     Logs action in audit log.
     """
     user = await get_user_by_id(db, id)

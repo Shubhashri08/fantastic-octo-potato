@@ -5,7 +5,7 @@ from httpx import AsyncClient
 async def test_login_success(client: AsyncClient, test_users: dict):
     # Retrieve credentials
     payload = {
-        "username": "test_operator",
+        "username": "test_user_2",
         "password": "password123"
     }
     response = await client.post("/auth/login", data=payload)
@@ -26,12 +26,12 @@ async def test_login_invalid_credentials(client: AsyncClient):
 
 @pytest.mark.asyncio
 async def test_get_me_authenticated(client: AsyncClient, test_users: dict):
-    token = test_users["operator"]["token"]
+    token = test_users["user_2"]["token"]
     headers = {"Authorization": f"Bearer {token}"}
     response = await client.get("/auth/me", headers=headers)
     assert response.status_code == 200
     json_data = response.json()
-    assert json_data["username"] == "test_operator"
+    assert json_data["username"] == "test_user_2"
     assert json_data["is_active"] is True
 
 @pytest.mark.asyncio
@@ -40,18 +40,9 @@ async def test_get_me_unauthenticated(client: AsyncClient):
     assert response.status_code == 401
 
 @pytest.mark.asyncio
-async def test_rbac_admin_endpoint_forbidden(client: AsyncClient, test_users: dict):
-    # Operator token trying to view all users
-    token = test_users["operator"]["token"]
-    headers = {"Authorization": f"Bearer {token}"}
-    response = await client.get("/users", headers=headers)
-    assert response.status_code == 403
-    assert response.json()["detail"] == "You do not have permission to access this resource"
-
-@pytest.mark.asyncio
-async def test_rbac_admin_endpoint_allowed(client: AsyncClient, test_users: dict):
-    # Admin token viewing all users
-    token = test_users["admin"]["token"]
+async def test_get_users_authenticated(client: AsyncClient, test_users: dict):
+    # Any authenticated token can view all users
+    token = test_users["user_2"]["token"]
     headers = {"Authorization": f"Bearer {token}"}
     response = await client.get("/users", headers=headers)
     assert response.status_code == 200
