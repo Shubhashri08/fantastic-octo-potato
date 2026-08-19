@@ -20,7 +20,7 @@ backend/airtlab_targets/
 frontend/public/snapshots/
 *.pt
 *.pth
-*.onnx
+# *.onnx  (best.onnx is our trained model, keep it)
 *.bin
 
 # Temporary media & recordings
