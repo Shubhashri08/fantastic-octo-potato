@@ -1,1 +1,21 @@
-gis/data/raw/osm/
+# Environment & credentials
+.env
+.env.*
+*.env
+
+# Python artifacts
+__pycache__/
+*.py[cod]
+
+# Large raw OSM and GIS binary extracts
+data/raw/osm/
+*.osm.pbf
+*.pbf
+
+# Local database dumps & backups
+data/backup/
+*.dump
+*.backup
+
+# OS files
+.DS_Store
