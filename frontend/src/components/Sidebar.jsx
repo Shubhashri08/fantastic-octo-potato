@@ -12,14 +12,14 @@ const OPERATIONAL_LAYERS = [
   {
     id: 'understand',
     name: 'Understand',
-    subtitle: 'Geospatial Map',
+    subtitle: 'Geospatial Intelligence',
     icon: 'map',
     badge: 'GIS'
   },
   {
     id: 'identify',
     name: 'Identify',
-    subtitle: 'Threat Log',
+    subtitle: 'Threat / Re-ID',
     icon: 'fingerprint',
     badge: null
   },
@@ -29,13 +29,6 @@ const OPERATIONAL_LAYERS = [
     subtitle: 'Tactical Dispatch',
     icon: 'bolt',
     badge: 'TACTICAL'
-  },
-  {
-    id: 'connect',
-    name: 'Connect',
-    subtitle: 'System Telemetry',
-    icon: 'share_reviews',
-    badge: null
   }
 ];
 
@@ -93,17 +86,17 @@ export default function Sidebar({ activeTab, onSelectTab, incidentCount }) {
                 </div>
               </div>
 
-              {layer.id === 'identify' && incidentCount > 0 && (
+              {layer.id === 'respond' && incidentCount > 0 && (
                 <motion.span
                   initial={{ scale: 0.8 }}
                   animate={{ scale: 1 }}
                   className="relative z-10 text-[10px] font-mono px-1.5 py-0.2 rounded bg-[#8e3335] text-[#ffd9d7] font-bold"
                 >
-                  {incidentCount}
+                  {Math.min(incidentCount, 10)} ACTIVE
                 </motion.span>
               )}
 
-              {layer.badge && layer.id !== 'identify' && (
+              {layer.badge && layer.id !== 'respond' && (
                 <span className="relative z-10 text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#161616] text-[#9ed1c1] border border-[#2A2A2A]">
                   {layer.badge}
                 </span>

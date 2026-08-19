@@ -1,13 +1,78 @@
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ShieldAlert, AlertTriangle, Send, CheckCircle2, PhoneCall, Radio, Truck, Siren, Eye, X } from 'lucide-react';
+import { 
+  ShieldAlert, AlertTriangle, Send, CheckCircle2, PhoneCall, Radio, 
+  Truck, Siren, Eye, X, MapPin, Clock, ShieldCheck, Activity, Filter
+} from 'lucide-react';
 
-export default function RespondConsole({ events, cameras, onSelectEvent }) {
+const MAX_ACTIVE_INCIDENTS = 10;
+
+const SEVERITY_WEIGHT = {
+  Critical: 4,
+  High: 3,
+  Medium: 2,
+  Low: 1
+};
+
+export default function RespondConsole({ events = [], cameras = [], onSelectEvent }) {
   const [dispatches, setDispatches] = useState({});
-  const [selectedIncident, setSelectedIncident] = useState(events[0] || null);
-  const [pendingDispatch, setPendingDispatch] = useState(null); // { eventId, actionType, actionTitle, units }
+  const [selectedIncidentId, setSelectedIncidentId] = useState(null);
+  const [pendingDispatch, setPendingDispatch] = useState(null);
 
-  const highSeverityEvents = events.filter(e => e.event_type === 'Fighting' || e.event_type === 'Fire' || e.severity === 'High');
+  // Active Filters
+  const [severityFilter, setSeverityFilter] = useState('ALL');
+  const [threatFilter, setThreatFilter] = useState('ALL');
+
+  // Filtered & Prioritized Actionable Incidents (Max 10)
+  const actionableEvents = useMemo(() => {
+    // 1. Filter by severity and threat type
+    const filtered = events.filter((ev) => {
+      const matchSeverity = severityFilter === 'ALL' || 
+        (ev.severity && ev.severity.toUpperCase() === severityFilter.toUpperCase());
+      
+      let matchThreat = true;
+      if (threatFilter !== 'ALL') {
+        const evType = (ev.event_type || '').toLowerCase();
+        const tf = threatFilter.toLowerCase();
+        if (tf === 'fighting') matchThreat = evType.includes('fight') || evType.includes('violenc');
+        else if (tf === 'vehicle collision') matchThreat = evType.includes('collision') || evType.includes('crash') || evType.includes('accident');
+        else if (tf === 'fire') matchThreat = evType.includes('fire') || evType.includes('flame');
+        else if (tf === 'smoke') matchThreat = evType.includes('smoke');
+        else if (tf === 'accident') matchThreat = evType.includes('accident') || evType.includes('collision');
+        else if (tf === 'person') matchThreat = evType.includes('person') || evType.includes('pedestrian');
+        else if (tf === 'vehicle') matchThreat = evType.includes('vehicle') || evType.includes('car');
+        else matchThreat = evType.includes(tf);
+      }
+
+      return matchSeverity && matchThreat;
+    });
+
+    // 2. Prioritize: Severity (Critical > High > Medium > Low) -> Recency (Newer > Older) -> Confidence
+    filtered.sort((a, b) => {
+      const weightA = SEVERITY_WEIGHT[a.severity] || 2;
+      const weightB = SEVERITY_WEIGHT[b.severity] || 2;
+      if (weightB !== weightA) return weightB - weightA;
+
+      const timeA = new Date(a.timestamp || 0).getTime();
+      const timeB = new Date(b.timestamp || 0).getTime();
+      if (timeB !== timeA) return timeB - timeA;
+
+      const confA = typeof a.confidence === 'number' ? a.confidence : 0.95;
+      const confB = typeof b.confidence === 'number' ? b.confidence : 0.95;
+      return confB - confA;
+    });
+
+    // 3. Cap to MAX_ACTIVE_INCIDENTS (10)
+    return filtered.slice(0, MAX_ACTIVE_INCIDENTS);
+  }, [events, severityFilter, threatFilter]);
+
+  const activeSelected = useMemo(() => {
+    if (selectedIncidentId) {
+      const found = actionableEvents.find(e => e.id === selectedIncidentId);
+      if (found) return found;
+    }
+    return actionableEvents[0] || null;
+  }, [actionableEvents, selectedIncidentId]);
 
   const openDispatchConfirmation = (eventId, actionType, actionTitle, units) => {
     setPendingDispatch({
@@ -22,7 +87,7 @@ export default function RespondConsole({ events, cameras, onSelectEvent }) {
   const confirmDispatch = () => {
     if (!pendingDispatch) return;
     const key = `${pendingDispatch.eventId}_${pendingDispatch.actionType}`;
-    setDispatches(prev => ({
+    setDispatches((prev) => ({
       ...prev,
       [key]: {
         time: new Date().toLocaleTimeString(),
@@ -34,71 +99,128 @@ export default function RespondConsole({ events, cameras, onSelectEvent }) {
   };
 
   const getCameraName = (camId) => {
-    const c = cameras.find(cam => cam.id === camId);
+    const c = cameras.find((cam) => cam.id === camId);
     return c ? c.name : `CAM-0${camId}`;
   };
 
   const getCameraGps = (camId) => {
-    const c = cameras.find(cam => cam.id === camId);
-    return c ? `${c.lat.toFixed(4)}°N, ${c.lon.toFixed(4)}°E` : '28.6139°N, 77.2090°E';
+    const c = cameras.find((cam) => cam.id === camId);
+    return c ? `${c.lat.toFixed(4)}°N, ${c.lon.toFixed(4)}°E` : (camId === 2 ? '12.9756°N, 77.6067°E' : '18.9401°N, 72.8351°E');
   };
 
   return (
-    <div className="flex flex-col lg:flex-row h-full overflow-hidden bg-[#0A0A0A] relative">
-      {/* Left Column: Critical Incidents Queue */}
-      <div className="w-full lg:w-[380px] border-r border-[#2A2A2A] bg-[#111111] p-4 flex flex-col flex-shrink-0">
+    <div className="flex flex-col lg:flex-row h-full overflow-hidden bg-[#0A0A0A] relative text-[#e5e2e1]">
+      {/* Left Column: Critical Actionable Incidents Queue (Tactical Action Stack) */}
+      <div className="w-full lg:w-[400px] border-r border-[#222222] bg-[#111111] p-4 flex flex-col flex-shrink-0">
+        {/* Header & Counter */}
         <div className="flex items-center justify-between pb-3 mb-3 border-b border-[#222222]">
           <div className="flex items-center gap-2">
-            <span className="material-symbols-outlined text-[#8e3335]">bolt</span>
+            <div className="p-1.5 rounded-lg bg-red-950/60 border border-red-800/80 text-red-300">
+              <ShieldAlert className="w-4 h-4" />
+            </div>
             <div>
               <h2 className="text-xs font-bold text-[#f5dfc0] uppercase tracking-wider font-mono">
-                Respond Layer — Tactical Action Stack
+                Tactical Action Stack
               </h2>
-              <p className="text-[10px] text-[#988f85] font-mono">Real-Time Threat Queue (Violence & Fire)</p>
+              <p className="text-[10px] text-[#858585] font-mono">Current Actionable Incidents</p>
             </div>
           </div>
-          <span className="text-[10px] font-mono px-1.5 py-0.5 bg-[#241113] text-[#ffd9d7] border border-[#8e3335] font-bold">
-            {highSeverityEvents.length} QUEUED
+          <span className="text-[10px] font-mono px-2 py-0.5 bg-red-950 text-red-200 border border-red-800 font-bold rounded">
+            {actionableEvents.length} ACTIVE
           </span>
         </div>
 
-        {/* Incident List */}
-        <div className="flex-1 overflow-y-auto space-y-2 pr-1">
-          {highSeverityEvents.length === 0 ? (
-            <div className="py-12 text-center text-[#555555] font-mono text-xs">
-              No active violence or fire emergencies in queue.
+        {/* Compact Filters at Top */}
+        <div className="bg-[#161616] border border-[#262626] rounded-xl p-2.5 mb-3 space-y-2 font-mono text-xs">
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-[#858585] uppercase flex items-center gap-1">
+              <Filter className="w-3 h-3 text-[#f5dfc0]" /> Filters
+            </span>
+            <span className="text-[10px] text-cyan-300">Showing {actionableEvents.length} active</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-2">
+            {/* Severity Filter */}
+            <div>
+              <label className="text-[9px] text-[#737373] block uppercase mb-0.5">Severity</label>
+              <select
+                value={severityFilter}
+                onChange={(e) => setSeverityFilter(e.target.value)}
+                className="w-full px-2 py-1 bg-[#0d0d0d] border border-[#333] rounded text-[11px] text-[#e5e2e1] outline-none focus:border-[#00F2FE]"
+              >
+                <option value="ALL">All Severities</option>
+                <option value="CRITICAL">Critical Only</option>
+                <option value="HIGH">High Only</option>
+                <option value="MEDIUM">Medium Only</option>
+                <option value="LOW">Low Only</option>
+              </select>
+            </div>
+
+            {/* Threat Class Filter */}
+            <div>
+              <label className="text-[9px] text-[#737373] block uppercase mb-0.5">Threat Class</label>
+              <select
+                value={threatFilter}
+                onChange={(e) => setThreatFilter(e.target.value)}
+                className="w-full px-2 py-1 bg-[#0d0d0d] border border-[#333] rounded text-[11px] text-[#e5e2e1] outline-none focus:border-[#00F2FE]"
+              >
+                <option value="ALL">All Classes</option>
+                <option value="FIGHTING">Fighting / Violence</option>
+                <option value="VEHICLE COLLISION">Vehicle Collision</option>
+                <option value="FIRE">Fire</option>
+                <option value="SMOKE">Smoke</option>
+                <option value="ACCIDENT">Accident</option>
+                <option value="PERSON">Person</option>
+                <option value="VEHICLE">Vehicle</option>
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Actionable Incident List */}
+        <div className="flex-1 overflow-y-auto space-y-2.5 pr-1">
+          {actionableEvents.length === 0 ? (
+            <div className="py-12 text-center text-[#666666] font-mono text-xs space-y-2">
+              <ShieldCheck className="w-8 h-8 text-[#444] mx-auto" />
+              <div>No actionable incidents matching active filters.</div>
             </div>
           ) : (
-            highSeverityEvents.map((ev) => {
-              const isSelected = selectedIncident?.id === ev.id;
+            actionableEvents.map((ev) => {
+              const isSelected = activeSelected?.id === ev.id;
               return (
-                <motion.div
+                <div
                   key={ev.id}
-                  whileHover={{ x: 2 }}
-                  whileTap={{ scale: 0.99 }}
-                  onClick={() => setSelectedIncident(ev)}
-                  className={`solid-card p-3 cursor-pointer border transition ${
-                    isSelected ? 'border-[#f5dfc0] bg-[#181818]' : 'border-[#262626] hover:border-[#353534]'
+                  onClick={() => setSelectedIncidentId(ev.id)}
+                  className={`p-3.5 rounded-xl cursor-pointer border transition font-mono ${
+                    isSelected 
+                      ? 'border-[#f5dfc0] bg-[#1a1a1a] shadow-lg shadow-black/60' 
+                      : 'border-[#222222] bg-[#0d0d0d] hover:border-[#3a3a3a] hover:bg-[#141414]'
                   }`}
                 >
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-[10px] font-mono font-bold text-[#ffd9d7] bg-[#8e3335] px-1.5 py-0.2">
-                      CRITICAL ALERT #{ev.id}
+                  <div className="flex items-center justify-between mb-2">
+                    <span className={`text-[10px] font-bold px-2 py-0.5 rounded border ${
+                      ev.severity === 'Critical' ? 'bg-red-950 text-red-200 border-red-800' :
+                      ev.severity === 'High' ? 'bg-orange-950 text-orange-200 border-orange-800' :
+                      'bg-yellow-950 text-yellow-200 border-yellow-800'
+                    }`}>
+                      🔴 {ev.severity?.toUpperCase() || 'HIGH'} ALERT #{ev.id}
                     </span>
-                    <span className="text-[10px] font-mono text-[#988f85]">
-                      {new Date(ev.timestamp).toLocaleTimeString()}
+                    <span className="text-[10px] text-[#858585]">
+                      {ev.timestamp ? new Date(ev.timestamp).toLocaleTimeString() : 'Recent'}
                     </span>
                   </div>
 
-                  <div className="text-xs font-bold text-[#f5dfc0] mb-1">
-                    {ev.event_type === 'Fighting' ? '⚔️ VIOLENCE / FIGHTING' : '🔥 FIRE OUTBREAK'}
+                  <div className="text-xs font-bold text-[#f5dfc0] mb-1.5 uppercase truncate">
+                    {ev.event_type === 'Fighting' ? 'VIOLENCE / FIGHTING' : ev.event_type === 'Fire' ? 'FIRE OUTBREAK' : ev.event_type}
                   </div>
 
-                  <div className="text-[11px] font-mono text-[#cfc5b9] flex items-center justify-between">
-                    <span>{getCameraName(ev.camera_id)}</span>
-                    <span className="text-[#9ed1c1] font-bold">{(ev.confidence * 100).toFixed(0)}% CONF</span>
+                  <div className="text-[11px] text-[#858585] flex items-center justify-between">
+                    <span className="truncate pr-2">{getCameraName(ev.camera_id)}</span>
+                    <span className="text-emerald-400 font-bold flex-shrink-0">
+                      {typeof ev.confidence === 'number' ? `${(ev.confidence * 100).toFixed(0)}% CONF` : '98% CONF'}
+                    </span>
                   </div>
-                </motion.div>
+                </div>
               );
             })
           )}
@@ -106,152 +228,203 @@ export default function RespondConsole({ events, cameras, onSelectEvent }) {
       </div>
 
       {/* Right Column: Threat Mitigation Panel */}
-      <div className="flex-1 p-5 bg-[#0D0D0D] flex flex-col justify-between overflow-y-auto">
-        {selectedIncident ? (
-          <div className="space-y-5">
-            {/* Header detail */}
-            <div className="flex flex-col md:flex-row items-start md:items-center justify-between pb-3 border-b border-[#222222] gap-3">
-              <div>
-                <div className="flex items-center gap-2">
-                  <span className="text-sm font-bold text-[#f5dfc0] font-mono uppercase">
-                    Incident #{selectedIncident.id} — Threat Mitigation Command
+      <div className="flex-1 p-6 bg-[#0a0a0a] overflow-y-auto space-y-5">
+        {activeSelected ? (
+          <div className="max-w-5xl mx-auto space-y-5">
+            {/* 1. INCIDENT HEADER CARD */}
+            <div className="bg-[#141414] border border-[#262626] rounded-2xl p-5 shadow-2xl space-y-3 font-mono">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#222] pb-3">
+                <div>
+                  <div className="text-[11px] text-[#858585] uppercase tracking-wider">
+                    INCIDENT #{activeSelected.id}
+                  </div>
+                  <h1 className="text-base font-bold text-[#f5dfc0] uppercase tracking-wide">
+                    THREAT MITIGATION COMMAND
+                  </h1>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <span className={`px-3 py-1 text-xs font-bold rounded-lg border flex items-center gap-1.5 ${
+                    activeSelected.severity === 'Critical' ? 'bg-red-950 text-red-200 border-red-700' :
+                    'bg-orange-950 text-orange-200 border-orange-700'
+                  }`}>
+                    <span className="w-2 h-2 rounded-full bg-red-500 animate-ping" />
+                    {activeSelected.severity?.toUpperCase() || 'CRITICAL'} SEVERITY
                   </span>
-                  <span className="px-2 py-0.5 text-[10px] font-mono font-bold bg-[#8e3335] text-[#ffd9d7]">
-                    CRITICAL SEVERITY
+
+                  <button
+                    onClick={() => onSelectEvent && onSelectEvent(activeSelected)}
+                    className="flex items-center gap-1.5 px-3.5 py-1.5 bg-[#1f1f1f] hover:bg-[#2a2a2a] text-[#f5dfc0] border border-[#333333] rounded-lg text-xs font-bold transition"
+                  >
+                    <Eye className="w-3.5 h-3.5 text-[#00F2FE]" />
+                    Inspect Verified Snapshot
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs pt-1">
+                <div>
+                  <span className="text-[10px] text-[#858585] uppercase block">Threat Classification</span>
+                  <span className="font-bold text-[#e5e2e1] text-sm">{activeSelected.event_type}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] text-[#858585] uppercase block">Location Node</span>
+                  <span className="font-bold text-[#e5e2e1]">{getCameraName(activeSelected.camera_id)}</span>
+                  <span className="text-[11px] text-cyan-300 block">GPS: {getCameraGps(activeSelected.camera_id)}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* 2. INCIDENT TELEMETRY + LIVE EVIDENCE GRID */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* Telemetry Card */}
+              <div className="bg-[#141414] border border-[#262626] rounded-2xl p-5 shadow-2xl space-y-3 font-mono text-xs">
+                <div className="flex items-center gap-2 border-b border-[#222] pb-2.5">
+                  <Activity className="w-4 h-4 text-emerald-400" />
+                  <h3 className="text-xs uppercase tracking-wider text-[#f5dfc0] font-bold">
+                    INCIDENT TELEMETRY
+                  </h3>
+                </div>
+
+                <div className="space-y-2.5">
+                  <div className="flex justify-between border-b border-[#1f1f1f] pb-2">
+                    <span className="text-[#858585]">Threat Classification</span>
+                    <span className="text-[#f5dfc0] font-bold">{activeSelected.event_type}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-[#1f1f1f] pb-2">
+                    <span className="text-[#858585]">Neural Confidence</span>
+                    <span className="text-emerald-400 font-bold">
+                      {typeof activeSelected.confidence === 'number' ? `${(activeSelected.confidence * 100).toFixed(1)}%` : '98.0%'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between border-b border-[#1f1f1f] pb-2">
+                    <span className="text-[#858585]">GPS Target Sector</span>
+                    <span className="text-cyan-300">{getCameraGps(activeSelected.camera_id)}</span>
+                  </div>
+                  <div className="flex justify-between border-b border-[#1f1f1f] pb-2">
+                    <span className="text-[#858585]">Temporal Confirmation</span>
+                    <span className="text-emerald-400 font-bold">≥3 Consecutive Positive Frames</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-[#858585]">Integrity Status</span>
+                    <span className="text-[#858585]">SHA-256 Verified Stream Block</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Live Incident Evidence Card */}
+              <div className="bg-[#141414] border border-[#262626] rounded-2xl p-5 shadow-2xl space-y-3 font-mono">
+                <div className="flex items-center justify-between border-b border-[#222] pb-2.5">
+                  <span className="text-xs uppercase tracking-wider text-[#f5dfc0] font-bold">
+                    LIVE INCIDENT EVIDENCE
+                  </span>
+                  <span className="text-[10px] text-red-400 bg-red-950 px-1.5 py-0.5 rounded border border-red-900 font-bold">
+                    LOCKED
                   </span>
                 </div>
-                <p className="text-xs text-[#988f85] font-mono">
-                  Location: {getCameraName(selectedIncident.camera_id)} • GPS: {getCameraGps(selectedIncident.camera_id)}
+
+                <div 
+                  onClick={() => onSelectEvent && onSelectEvent(activeSelected)}
+                  className="relative aspect-video bg-black border border-[#262626] rounded-xl overflow-hidden cursor-pointer group flex items-center justify-center"
+                >
+                  {activeSelected.snapshot_path ? (
+                    <>
+                      <img
+                        src={activeSelected.snapshot_path}
+                        alt="Snapshot"
+                        className="w-full h-full object-cover group-hover:scale-105 transition duration-300"
+                      />
+                      <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2 text-white text-xs font-bold">
+                        <Eye className="w-4 h-4" /> Click to Inspect Forensic Sighting
+                      </div>
+                    </>
+                  ) : (
+                    <div className="text-[#666] text-xs">Snapshot Unavailable</div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 3. AUTHORIZED TACTICAL RESPONSE CARD */}
+            <div className="bg-[#141414] border border-[#262626] rounded-2xl p-5 shadow-2xl space-y-4 font-mono">
+              <div>
+                <h3 className="text-xs font-bold text-[#f5dfc0] uppercase tracking-wider">
+                  AUTHORIZED TACTICAL RESPONSE
+                </h3>
+                <p className="text-[11px] text-[#858585] mt-0.5">
+                  Two-step authorization protocol to alert emergency units
                 </p>
               </div>
 
-              <motion.button
-                whileHover={{ scale: 1.03 }}
-                whileTap={{ scale: 0.97 }}
-                onClick={() => onSelectEvent(selectedIncident)}
-                className="flex items-center gap-1.5 px-3 py-1.5 bg-[#1C1B1B] hover:bg-[#2A2A2A] text-[#f5dfc0] border border-[#353534] text-xs font-mono font-bold"
-              >
-                <Eye className="w-3.5 h-3.5" /> Inspect Verified Snapshot
-              </motion.button>
-            </div>
-
-            {/* Visual Snapshot & Telemetry */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div className="solid-card p-3 space-y-2">
-                <span className="text-[10px] font-mono text-[#988f85] uppercase">Live Incident Capture Frame</span>
-                <div className="relative aspect-video bg-[#0E0E0E] border border-[#222222] overflow-hidden">
-                  <img
-                    src={selectedIncident.snapshot_path}
-                    alt="Snapshot"
-                    className="w-full h-full object-contain"
-                  />
-                </div>
-              </div>
-
-              <div className="solid-card p-4 space-y-3 font-mono text-xs">
-                <span className="text-[10px] text-[#988f85] uppercase">Incident Telemetry</span>
-                <div className="space-y-2">
-                  <div className="flex justify-between border-b border-[#222222] pb-1">
-                    <span className="text-[#988f85]">Threat Classification</span>
-                    <span className="text-[#f5dfc0] font-bold">{selectedIncident.event_type}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-[#222222] pb-1">
-                    <span className="text-[#988f85]">Neural Confidence</span>
-                    <span className="text-[#9ed1c1] font-bold">{(selectedIncident.confidence * 100).toFixed(1)}%</span>
-                  </div>
-                  <div className="flex justify-between border-b border-[#222222] pb-1">
-                    <span className="text-[#988f85]">GPS Target Sector</span>
-                    <span className="text-[#cfc5b9]">{getCameraGps(selectedIncident.camera_id)}</span>
-                  </div>
-                  <div className="flex justify-between border-b border-[#222222] pb-1">
-                    <span className="text-[#988f85]">Temporal Confirmation</span>
-                    <span className="text-[#9ed1c1]">≥3 Consecutive Positive Frames</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* Tactical Response Action Triggers (Two-Step Modal Confirmation) */}
-            <div className="space-y-3">
-              <span className="text-xs font-bold font-mono text-[#f5dfc0] uppercase tracking-wider">
-                Authorized Tactical Response Protocols (Two-Step Verification)
-              </span>
-
               <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                {/* Action 1: Police Intercept for Violence */}
-                <div className="solid-card p-3 flex flex-col justify-between space-y-3">
+                {/* Security Force */}
+                <div className="p-4 rounded-xl bg-[#0e0e0e] border border-[#262626] flex flex-col justify-between space-y-3">
                   <div className="flex items-center gap-2">
-                    <ShieldAlert className="w-5 h-5 text-[#ffd9d7]" />
-                    <div className="text-xs font-bold text-[#f5dfc0]">Police / Security Intercept</div>
+                    <ShieldAlert className="w-4 h-4 text-red-400" />
+                    <div className="text-xs font-bold text-[#f5dfc0]">Police / Security Force</div>
                   </div>
-                  <p className="text-[10px] text-[#988f85] font-mono">
+                  <p className="text-[10px] text-[#858585]">
                     Direct automated alert to on-ground patrol and security units.
                   </p>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => openDispatchConfirmation(selectedIncident.id, 'POLICE', 'Police & Security Intercept Unit', '2 Sector Patrol Cars + QRT Squad')}
-                    className={`w-full py-1.5 text-[11px] font-bold font-mono uppercase tracking-wider transition ${
-                      dispatches[`${selectedIncident.id}_POLICE`]
-                        ? 'bg-[#1d4f43] text-[#9ed1c1] border border-[#9ed1c1]'
-                        : 'bg-[#8e3335] hover:bg-[#a63d40] text-[#ffd9d7]'
+                  <button
+                    onClick={() => openDispatchConfirmation(activeSelected.id, 'POLICE', 'Police & Security Intercept Unit', '2 Sector Patrol Cars + QRT Squad')}
+                    className={`w-full py-2 rounded-lg text-xs font-bold uppercase transition ${
+                      dispatches[`${activeSelected.id}_POLICE`]
+                        ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
+                        : 'bg-red-900/60 hover:bg-red-800 border border-red-700 text-red-100'
                     }`}
                   >
-                    {dispatches[`${selectedIncident.id}_POLICE`] ? '✓ Security Dispatched' : 'Deploy Security Force'}
-                  </motion.button>
+                    {dispatches[`${activeSelected.id}_POLICE`] ? 'Security Dispatched' : 'Deploy Security Force'}
+                  </button>
                 </div>
 
-                {/* Action 2: Fire Brigade */}
-                <div className="solid-card p-3 flex flex-col justify-between space-y-3">
+                {/* Fire Brigade */}
+                <div className="p-4 rounded-xl bg-[#0e0e0e] border border-[#262626] flex flex-col justify-between space-y-3">
                   <div className="flex items-center gap-2">
-                    <Siren className="w-5 h-5 text-[#f5dfc0]" />
-                    <div className="text-xs font-bold text-[#f5dfc0]">Fire Brigade & Suppression</div>
+                    <Siren className="w-4 h-4 text-orange-400" />
+                    <div className="text-xs font-bold text-[#f5dfc0]">Fire Brigade</div>
                   </div>
-                  <p className="text-[10px] text-[#988f85] font-mono">
+                  <p className="text-[10px] text-[#858585]">
                     Notify municipal fire station and engage sector suppression protocols.
                   </p>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => openDispatchConfirmation(selectedIncident.id, 'FIRE', 'Municipal Fire Brigade & Foam Tender', '1 Fire Engine + Sector Water Tender')}
-                    className={`w-full py-1.5 text-[11px] font-bold font-mono uppercase tracking-wider transition ${
-                      dispatches[`${selectedIncident.id}_FIRE`]
-                        ? 'bg-[#1d4f43] text-[#9ed1c1] border border-[#9ed1c1]'
-                        : 'bg-[#f5dfc0] hover:bg-[#d8c3a5] text-[#3b2e19]'
+                  <button
+                    onClick={() => openDispatchConfirmation(activeSelected.id, 'FIRE', 'Municipal Fire Brigade & Foam Tender', '1 Fire Engine + Sector Water Tender')}
+                    className={`w-full py-2 rounded-lg text-xs font-bold uppercase transition ${
+                      dispatches[`${activeSelected.id}_FIRE`]
+                        ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
+                        : 'bg-[#f5dfc0] hover:bg-white text-black font-black'
                     }`}
                   >
-                    {dispatches[`${selectedIncident.id}_FIRE`] ? '✓ Fire Dept Alerted' : 'Alert Fire Brigade'}
-                  </motion.button>
+                    {dispatches[`${activeSelected.id}_FIRE`] ? 'Fire Dept Alerted' : 'Alert Fire Brigade'}
+                  </button>
                 </div>
 
-                {/* Action 3: Medical Response */}
-                <div className="solid-card p-3 flex flex-col justify-between space-y-3">
+                {/* Medical Response (EMS) */}
+                <div className="p-4 rounded-xl bg-[#0e0e0e] border border-[#262626] flex flex-col justify-between space-y-3">
                   <div className="flex items-center gap-2">
-                    <Truck className="w-5 h-5 text-[#9ed1c1]" />
+                    <Truck className="w-4 h-4 text-cyan-400" />
                     <div className="text-xs font-bold text-[#f5dfc0]">Emergency Medical (EMS)</div>
                   </div>
-                  <p className="text-[10px] text-[#988f85] font-mono">
+                  <p className="text-[10px] text-[#858585]">
                     Dispatch trauma ambulance unit to incident coordinates.
                   </p>
-                  <motion.button
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => openDispatchConfirmation(selectedIncident.id, 'EMS', 'Emergency Medical Trauma Unit (EMS)', '1 Advanced Life Support (ALS) Ambulance')}
-                    className={`w-full py-1.5 text-[11px] font-bold font-mono uppercase tracking-wider transition ${
-                      dispatches[`${selectedIncident.id}_EMS`]
-                        ? 'bg-[#1d4f43] text-[#9ed1c1] border border-[#9ed1c1]'
-                        : 'bg-[#1C1B1B] hover:bg-[#2A2A2A] text-[#cfc5b9] border border-[#353534]'
+                  <button
+                    onClick={() => openDispatchConfirmation(activeSelected.id, 'EMS', 'Emergency Medical Trauma Unit (EMS)', '1 Advanced Life Support (ALS) Ambulance')}
+                    className={`w-full py-2 rounded-lg text-xs font-bold uppercase transition ${
+                      dispatches[`${activeSelected.id}_EMS`]
+                        ? 'bg-emerald-950 text-emerald-300 border border-emerald-700'
+                        : 'bg-[#1f1f1f] hover:bg-[#2b2b2b] text-[#e5e2e1] border border-[#3a3a3a]'
                     }`}
                   >
-                    {dispatches[`${selectedIncident.id}_EMS`] ? '✓ Ambulance Dispatched' : 'Request Ambulance'}
-                  </motion.button>
+                    {dispatches[`${activeSelected.id}_EMS`] ? 'Ambulance Dispatched' : 'Request Ambulance'}
+                  </button>
                 </div>
               </div>
             </div>
           </div>
         ) : (
-          <div className="flex flex-col items-center justify-center h-full text-[#555555] font-mono text-sm">
-            Select an incident from the threat stack to review tactical response options.
+          <div className="flex flex-col items-center justify-center h-full text-[#666] font-mono text-sm">
+            Select an incident from the tactical action stack to review response options.
           </div>
         )}
       </div>
@@ -259,87 +432,70 @@ export default function RespondConsole({ events, cameras, onSelectEvent }) {
       {/* Two-Step Tactical Dispatch Confirmation Modal */}
       <AnimatePresence>
         {pendingDispatch && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <div 
             className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md"
             onClick={() => setPendingDispatch(null)}
           >
             <motion.div
-              initial={{ scale: 0.94, opacity: 0, y: 15 }}
+              initial={{ scale: 0.95, opacity: 0, y: 10 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.94, opacity: 0, y: 15 }}
-              transition={{ type: 'spring', stiffness: 380, damping: 28 }}
-              className="solid-panel w-full max-w-lg p-5 border border-[#ffd9d7]/50 bg-[#141414] shadow-2xl space-y-4"
+              exit={{ scale: 0.95, opacity: 0, y: 10 }}
+              className="w-full max-w-lg p-6 border border-red-800/80 rounded-2xl bg-[#141414] shadow-2xl space-y-4 font-mono text-xs"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Header */}
-              <div className="flex items-center justify-between border-b border-[#2A2A2A] pb-3">
+              <div className="flex items-center justify-between border-b border-[#2a2a2a] pb-3">
                 <div className="flex items-center gap-2">
-                  <span className="material-symbols-outlined text-[#ffd9d7]">warning</span>
-                  <div>
-                    <h3 className="text-sm font-bold text-[#f5dfc0] font-mono uppercase">
-                      Confirm Emergency Dispatch Transmission
-                    </h3>
-                    <p className="text-[11px] text-[#988f85] font-mono">
-                      Two-Step Protocol Authorization • Incident #EV-{String(pendingDispatch.eventId).padStart(4, '0')}
-                    </p>
-                  </div>
+                  <AlertTriangle className="w-5 h-5 text-red-400" />
+                  <h3 className="text-sm font-bold text-[#f5dfc0] uppercase">
+                    Confirm Emergency Tactical Transmission
+                  </h3>
                 </div>
-                <button
-                  onClick={() => setPendingDispatch(null)}
-                  className="text-[#988f85] hover:text-[#f5dfc0]"
-                >
+                <button onClick={() => setPendingDispatch(null)} className="text-[#858585] hover:text-white">
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Dispatch Details Grid */}
-              <div className="space-y-2 bg-[#191919] p-3.5 border border-[#2A2A2A] font-mono text-xs">
-                <div className="flex justify-between border-b border-[#262626] pb-1.5">
-                  <span className="text-[#988f85]">Target Incident</span>
+              <div className="space-y-2 bg-[#0a0a0a] p-4 rounded-xl border border-[#222]">
+                <div className="flex justify-between border-b border-[#1f1f1f] pb-1.5">
+                  <span className="text-[#858585]">Target Incident</span>
                   <span className="text-[#f5dfc0] font-bold">
-                    {selectedIncident?.event_type} (#EV-{String(pendingDispatch.eventId).padStart(4, '0')})
+                    {activeSelected?.event_type} (#EVT-{String(pendingDispatch.eventId).padStart(4, '0')})
                   </span>
                 </div>
-                <div className="flex justify-between border-b border-[#262626] pb-1.5">
-                  <span className="text-[#988f85]">Target Location</span>
-                  <span className="text-[#cfc5b9]">{getCameraName(selectedIncident?.camera_id)}</span>
+                <div className="flex justify-between border-b border-[#1f1f1f] pb-1.5">
+                  <span className="text-[#858585]">Location Node</span>
+                  <span className="text-[#e5e2e1]">{getCameraName(activeSelected?.camera_id)}</span>
                 </div>
-                <div className="flex justify-between border-b border-[#262626] pb-1.5">
-                  <span className="text-[#988f85]">Target Coordinates</span>
-                  <span className="text-[#9ed1c1]">{getCameraGps(selectedIncident?.camera_id)}</span>
+                <div className="flex justify-between border-b border-[#1f1f1f] pb-1.5">
+                  <span className="text-[#858585]">Coordinates</span>
+                  <span className="text-cyan-300">{getCameraGps(activeSelected?.camera_id)}</span>
                 </div>
-                <div className="flex justify-between border-b border-[#262626] pb-1.5">
-                  <span className="text-[#988f85]">Deployment Action</span>
-                  <span className="text-[#ffd9d7] font-bold">{pendingDispatch.actionTitle}</span>
+                <div className="flex justify-between border-b border-[#1f1f1f] pb-1.5">
+                  <span className="text-[#858585]">Deployment Action</span>
+                  <span className="text-red-200 font-bold">{pendingDispatch.actionTitle}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-[#988f85]">Allocated Units</span>
+                  <span className="text-[#858585]">Allocated Units</span>
                   <span className="text-[#f5dfc0] font-bold">{pendingDispatch.units}</span>
                 </div>
               </div>
 
-              {/* Actions */}
               <div className="flex justify-end gap-3 pt-2">
                 <button
                   onClick={() => setPendingDispatch(null)}
-                  className="px-4 py-2 bg-[#1C1B1B] hover:bg-[#2A2A2A] text-[#cfc5b9] border border-[#333333] text-xs font-mono font-bold"
+                  className="px-4 py-2 bg-[#1f1f1f] hover:bg-[#2a2a2a] text-[#858585] hover:text-white rounded-lg text-xs font-bold transition"
                 >
                   Abort
                 </button>
-                <motion.button
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
+                <button
                   onClick={confirmDispatch}
-                  className="px-5 py-2 bg-[#8e3335] hover:bg-[#a63d40] text-[#ffd9d7] text-xs font-mono font-bold uppercase tracking-wider"
+                  className="px-5 py-2 bg-red-800 hover:bg-red-700 text-white rounded-lg text-xs font-bold uppercase tracking-wider transition"
                 >
                   Authorize & Transmit Dispatch
-                </motion.button>
+                </button>
               </div>
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>

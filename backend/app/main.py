@@ -1,63 +1,83 @@
 import os
-import torch
+import time
 import logging
+import cv2
+import numpy as np
 from contextlib import asynccontextmanager
 from typing import Optional, List
-from fastapi import FastAPI, Depends, HTTPException, Query
+from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
 from .database import get_db, BASE_DIR
 from .models import Camera, Event
-from .schemas import CameraCreate, CameraResponse, EventResponse, StartDetectionRequest, DetectionStatusResponse
-from .model_downloader import load_models
-from .detection import DetectionEngine
-from .stream_manager import StreamManager
+from .schemas import (
+    CameraCreate, CameraResponse, EventResponse, 
+    StartDetectionRequest, DetectionStatusResponse, VehicleFlagRequest
+)
 from .seed_data import init_db_and_seed
+from . import vehicle_service
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger("vigrah_backend")
 
-# Global instances
+# Lazy Global instances
 detection_engine = None
 stream_manager = None
 reid_engine = None
 
+def get_detection_engine():
+    """Lazy loader for YOLO and PyTorch incident detection models."""
+    global detection_engine
+    if detection_engine is None:
+        logger.info("Lazy-loading YOLO detection models on demand...")
+        from .model_downloader import load_models
+        from .detection import DetectionEngine
+        models_dict = load_models()
+        detection_engine = DetectionEngine(models_dict)
+    return detection_engine
+
+def get_stream_manager():
+    """Lazy loader for camera stream workers."""
+    global stream_manager
+    if stream_manager is None:
+        engine = get_detection_engine()
+        from .stream_manager import StreamManager
+        stream_manager = StreamManager(engine)
+    return stream_manager
+
+def get_reid_engine():
+    """Lazy loader for Person ReID engine."""
+    global reid_engine
+    if reid_engine is None:
+        from .reid_engine import ReIDEngine
+        reid_engine = ReIDEngine()
+    return reid_engine
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global detection_engine, stream_manager, reid_engine
-    logger.info("Initializing VIGRAH AI Backend...")
+    logger.info("Initializing VIGRAH AI Backend (Fast Startup Mode)...")
+    init_start = time.perf_counter()
 
-    # 1. Initialize SQLite Database & seed defaults
+    # 1. Initialize SQLite Database Schema & Seed default records
     init_db_and_seed()
-
-    # 2. Load YOLO Models
-    models_dict = load_models()
-    detection_engine = DetectionEngine(models_dict)
-
-    # 3. Initialize Stream Manager
-    stream_manager = StreamManager(detection_engine)
-
-    # 4. Initialize Phase 2 ReID & Vehicle Finder Engine
-    from .reid_engine import ReIDEngine
-    reid_engine = ReIDEngine()
-
-    # 5. Auto-start all active cameras in DB
-    from .database import SessionLocal
-    db = SessionLocal()
+    
+    # 2. Auto-index video evidence sources if empty
+    from .video_person_engine import video_person_engine
     try:
-        active_cams = db.query(Camera).filter(Camera.is_active == True).all()
-        for cam in active_cams:
-            stream_manager.start_camera(cam.id, cam.source, cam.source_type)
-        logger.info(f"Auto-started {len(active_cams)} camera stream worker(s).")
-    finally:
-        db.close()
+        video_person_engine.auto_index_sample_videos_if_empty()
+    except Exception as e:
+        logger.warning(f"Video person auto-index warning: {e}")
+
+    elapsed_ms = round((time.perf_counter() - init_start) * 1000, 2)
+    logger.info(f"VIGRAH AI API Ready (Startup completed in {elapsed_ms}ms).")
 
     yield
 
     logger.info("Shutting down VIGRAH AI backend workers...")
+    global stream_manager
     if stream_manager:
         for cam_id in list(stream_manager.workers.keys()):
             stream_manager.stop_camera(cam_id)
@@ -80,20 +100,26 @@ app.add_middleware(
     expose_headers=["*"]
 )
 
-# Mount snapshots directory for serving event images
+# Mount static asset directories
 snapshots_path = os.path.join(BASE_DIR, "snapshots")
 os.makedirs(snapshots_path, exist_ok=True)
 app.mount("/snapshots", StaticFiles(directory=snapshots_path), name="snapshots")
 
-# Mount recordings directory for serving auto-recorded DVR video clips
 recordings_path = os.path.join(BASE_DIR, "recordings")
 os.makedirs(recordings_path, exist_ok=True)
 app.mount("/recordings", StaticFiles(directory=recordings_path), name="recordings")
 
-# Mount samples directory for serving unique CCTV video node clips
 samples_path = os.path.join(BASE_DIR, "samples")
 os.makedirs(samples_path, exist_ok=True)
 app.mount("/samples", StaticFiles(directory=samples_path), name="samples")
+
+evidence_path = os.path.join(BASE_DIR, "evidence")
+os.makedirs(evidence_path, exist_ok=True)
+app.mount("/evidence", StaticFiles(directory=evidence_path), name="evidence")
+
+uploads_path = os.path.join(BASE_DIR, "uploads")
+os.makedirs(uploads_path, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_path), name="uploads")
 
 
 # ================= CAMERA ENDPOINTS =================
@@ -110,8 +136,9 @@ def create_camera(cam: CameraCreate, db: Session = Depends(get_db)):
     db.add(new_cam)
     db.commit()
     db.refresh(new_cam)
-    if new_cam.is_active and stream_manager:
-        stream_manager.start_camera(new_cam.id, new_cam.source, new_cam.source_type)
+    if new_cam.is_active:
+        sm = get_stream_manager()
+        sm.start_camera(new_cam.id, new_cam.source, new_cam.source_type)
     return new_cam
 
 @app.put("/api/cameras/{camera_id}", response_model=CameraResponse)
@@ -127,11 +154,11 @@ def update_camera(camera_id: int, cam_data: CameraCreate, db: Session = Depends(
     db.commit()
     db.refresh(cam)
     
-    if stream_manager:
-        if cam.is_active:
-            stream_manager.start_camera(cam.id, cam.source, cam.source_type)
-        else:
-            stream_manager.stop_camera(cam.id)
+    sm = get_stream_manager()
+    if cam.is_active:
+        sm.start_camera(cam.id, cam.source, cam.source_type)
+    else:
+        sm.stop_camera(cam.id)
             
     return cam
 
@@ -140,192 +167,355 @@ def update_camera(camera_id: int, cam_data: CameraCreate, db: Session = Depends(
 
 @app.get("/api/events", response_model=List[EventResponse])
 def get_events(
-    limit: int = 100,
+    limit: int = 50,
+    offset: int = 0,
     event_type: Optional[str] = Query(None),
     camera_id: Optional[int] = Query(None),
     severity: Optional[str] = Query(None),
+    status: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
-    """Fetch detected incident events with optional filtering."""
+    """Fetch detected investigative incidents with filtering and pagination."""
     query = db.query(Event)
-    if event_type and event_type != "All":
+    if event_type and event_type != "ALL":
         query = query.filter(Event.event_type.ilike(f"%{event_type}%"))
-    if camera_id:
-        query = query.filter(Event.camera_id == camera_id)
-    if severity and severity != "All":
-        query = query.filter(Event.severity == severity)
+    if camera_id and camera_id != "ALL":
+        try:
+            cid = int(str(camera_id).replace("CAM-0", "").replace("CAM-", ""))
+            query = query.filter(Event.camera_id == cid)
+        except Exception:
+            pass
+    if severity and severity != "ALL":
+        query = query.filter(Event.severity.ilike(severity))
+    if status and status != "ALL":
+        query = query.filter(Event.status == status)
+    return query.order_by(Event.timestamp.desc()).offset(offset).limit(limit).all()
 
-    return query.order_by(Event.timestamp.desc()).limit(limit).all()
+@app.post("/api/system/reset-demo")
+def reset_demo_endpoint(db: Session = Depends(get_db)):
+    """Reset demonstration dataset to verified distributed CCTV state."""
+    from .seed_data import init_db_and_seed
+    init_db_and_seed(force_reset_events=True)
+    return {"status": "success", "message": "Demo investigative incidents reset successfully."}
+
+from .reconstruction_engine import analyze_event_reconstruction
+from pydantic import BaseModel
+
+class ReconstructionRequest(BaseModel):
+    event_id: int
+
+@app.post("/api/reconstruction/analyze")
+@app.get("/api/reconstruction/analyze")
+def analyze_reconstruction_endpoint(
+    event_id: Optional[int] = Query(None),
+    payload: Optional[ReconstructionRequest] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Geospatial Event Reconstruction & Trajectory Prediction API:
+    Builds observed pre-incident movement, predicts 3-5 candidate future routes along road network,
+    ranks them with transparent likelihood scores, and calculates next CCTV intercept checkpoints.
+    """
+    target_event_id = (payload.event_id if payload else None) or event_id
+    if not target_event_id:
+        # Fallback to the latest high/critical event
+        latest_ev = db.query(Event).order_by(Event.timestamp.desc()).first()
+        if not latest_ev:
+            raise HTTPException(status_code=404, detail="No recorded incidents available for reconstruction.")
+        target_event_id = latest_ev.id
+
+    try:
+        return analyze_event_reconstruction(db, target_event_id)
+    except ValueError as ve:
+        raise HTTPException(status_code=404, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Reconstruction analysis error: {str(e)}")
 
 @app.get("/api/events/{event_id}/reconstruction")
-def get_event_reconstruction(event_id: str, db: Session = Depends(get_db)):
+def get_event_reconstruction(event_id: int, db: Session = Depends(get_db)):
     """
-    Forensic Event Reconstruction:
-    Synthesizes the 3-phase temporal narrative (Pre-Incident, Climax, Post-Incident)
-    using associated entities, proximity radii, and multi-camera sightings.
+    Forensic Incident Reconstruction API (Alias for Event Detail).
     """
-    from .models import Event, Alert, Entity, EntitySighting, EventEntityMapping
-    
-    # 1. Fetch Event or Alert record safely
-    ev = None
-    if event_id.isdigit():
-        ev = db.query(Event).filter(Event.id == int(event_id)).first()
-    else:
-        ev = db.query(Event).filter(Event.event_id == event_id).first()
-        
-    alert = db.query(Alert).filter((Alert.id == event_id) | (Alert.event_id == event_id)).first()
+    try:
+        return analyze_event_reconstruction(db, event_id)
+    except ValueError as ve:
+        raise HTTPException(status_code=404, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Reconstruction analysis error: {str(e)}")
 
-    event_name = ev.event_type if ev else (alert.event_type if alert else "Suspicious Incident")
-    cam_id = ev.camera_id if ev else (alert.camera_id if alert else "CAM-01")
-    event_time = ev.timestamp if ev else (alert.timestamp if alert else datetime.now())
-    confidence = ev.confidence if ev else (alert.confidence if alert else 0.92)
-    severity = ev.severity if ev else (alert.severity if alert else "High")
-    lat = alert.latitude if alert and alert.latitude else (18.9401 if "MUM" in str(cam_id) or cam_id in [1, 3] else 12.9756)
-    lon = alert.longitude if alert and alert.longitude else (72.8351 if "MUM" in str(cam_id) or cam_id in [1, 3] else 77.6067)
-    
-    # 2. Query Mapped Entities (or default to Mumbai/Bengaluru tracks in DB)
-    mappings = db.query(EventEntityMapping).filter(EventEntityMapping.event_id == event_id).all()
-    mapped_track_ids = [m.track_id for m in mappings]
-    if not mapped_track_ids:
-        # Fallback to nearest city entities
-        is_mumbai = "MUM" in str(cam_id) or cam_id in [1, 3, "CAM-01", "CAM-03"]
-        prefix = "TRACK-MUM" if is_mumbai else "TRACK-BEN"
-        entities = db.query(Entity).filter(Entity.track_id.like(f"{prefix}%")).all()
-    else:
-        entities = db.query(Entity).filter(Entity.track_id.in_(mapped_track_ids)).all()
 
-    # 3. Query Chronological Sightings
-    entity_data = []
-    all_sightings = []
-    for ent in entities:
-        sightings = db.query(EntitySighting).filter(EntitySighting.track_id == ent.track_id).order_by(EntitySighting.timestamp.asc()).all()
-        s_list = []
-        for s in sightings:
-            s_dict = {
-                "sighting_id": s.sighting_id,
-                "camera_id": s.camera_id,
-                "timestamp": s.timestamp.strftime("%Y-%m-%d %H:%M:%S") if s.timestamp else "N/A",
-                "confidence": s.confidence
-            }
-            s_list.append(s_dict)
-            all_sightings.append({**s_dict, "track_id": ent.track_id, "entity_type": ent.entity_type})
+# ================= VIDEO EVIDENCE & MISSING PERSON RE-ID ENDPOINTS =================
 
-        # Match mapping proximity
-        map_rec = next((m for m in mappings if m.track_id == ent.track_id), None)
-        
-        meta_clean = {}
-        if getattr(ent, "meta_info", None):
-            if isinstance(ent.meta_info, dict):
-                meta_clean = {str(k): str(v) for k, v in ent.meta_info.items()}
-            elif isinstance(ent.meta_info, str):
-                try:
-                    meta_clean = json.loads(ent.meta_info)
-                except Exception:
-                    meta_clean = {"info": str(ent.meta_info)}
+from .video_person_engine import video_person_engine
+from .models import VideoEvidence
+import cv2
 
-        entity_data.append({
-            "track_id": str(ent.track_id),
-            "entity_type": str(ent.entity_type),
-            "first_seen": ent.first_seen.strftime("%Y-%m-%d %H:%M:%S") if getattr(ent, "first_seen", None) else "N/A",
-            "last_seen": ent.last_seen.strftime("%Y-%m-%d %H:%M:%S") if getattr(ent, "last_seen", None) else "N/A",
-            "metadata": meta_clean,
-            "association_type": str(map_rec.association_type) if map_rec else "SUSPECT/WITNESS",
-            "proximity_meters": float(map_rec.proximity_meters) if map_rec else 48.5,
-            "sightings": s_list
-        })
-
-    all_sightings.sort(key=lambda x: x["timestamp"])
-
-    # 4. Synthesize Forensic Narrative
-    narrative = [
+@app.get("/api/person/videos")
+def get_person_videos_endpoint(db: Session = Depends(get_db)):
+    """
+    Returns list of indexed CCTV/Video Evidence sources with tracks and sighting counts.
+    """
+    videos = db.query(VideoEvidence).order_by(VideoEvidence.created_at.desc()).all()
+    return [
         {
-            "phase": "PHASE 1: PRE-INCIDENT BUILD-UP (T - 15m)",
-            "description": f"Entities approached {cam_id} perimeter. Earliest detected ingress at {all_sightings[0]['timestamp'] if all_sightings else 'T-10m'} with {len(entity_data)} target(s) entering surveillance corridor.",
-            "status": "INGRESS"
-        },
-        {
-            "phase": "PHASE 2: INCIDENT OCCURRENCE (T = 0)",
-            "description": f"Primary {event_name} incident confirmed at {cam_id} with {int(confidence * 100)}% neural certainty. Spatial proximity indicates {len(entity_data)} entities in immediate hazard radius (<110m).",
-            "status": "INCIDENT_ACTIVE"
-        },
-        {
-            "phase": "PHASE 3: POST-INCIDENT DISPERSAL (T + 15m)",
-            "description": f"Entities evacuated area past secondary checkpoints. Last confirmed telemetry sighted at {all_sightings[-1]['timestamp'] if all_sightings else 'T+8m'}.",
-            "status": "DISPERSAL"
+            "source_id": v.source_id,
+            "source_name": v.source_name,
+            "filename": v.filename,
+            "location": v.location or "Video source location unavailable",
+            "duration_sec": round(v.duration_sec, 2),
+            "fps": round(v.fps, 1),
+            "total_frames": v.total_frames,
+            "status": v.status,
+            "track_count": v.track_count,
+            "sighting_count": v.sighting_count,
+            "created_at": str(v.created_at)
         }
+        for v in videos
     ]
 
-    return {
-        "event_id": str(event_id),
-        "event_type": event_name,
-        "camera_id": cam_id,
-        "timestamp": event_time.strftime("%Y-%m-%d %H:%M:%S") if hasattr(event_time, "strftime") else str(event_time),
-        "confidence": confidence,
-        "severity": severity,
-        "location": {"lat": lat, "lon": lon},
-        "involved_entities": entity_data,
-        "chronological_sightings": all_sightings,
-        "reconstructed_timeline": narrative
-    }
+@app.post("/api/person/videos/upload")
+async def upload_person_video_endpoint(
+    file: UploadFile = File(...),
+    source_name: Optional[str] = Query(None),
+    location: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Uploads and processes CCTV / Video Evidence:
+    Extracts sampled frames, detects pedestrians, tracks people across time,
+    saves high-resolution crops, and indexes appearance embeddings.
+    """
+    if not file.filename.lower().endswith(('.mp4', '.avi', '.mov', '.mkv', '.webm')):
+        raise HTTPException(status_code=400, detail="Unsupported video format. Please upload MP4, AVI, MOV, MKV, or WEBM.")
 
+    # Generate distinct source ID
+    count = db.query(VideoEvidence).count()
+    source_id = f"VIDEO-{(count + 1):02d}"
 
-# ================= PHASE 2: PERSON FINDER & VEHICLE FINDER ENDPOINTS =================
+    uploads_dir = os.path.join(BASE_DIR, "uploads", "videos")
+    os.makedirs(uploads_dir, exist_ok=True)
+    saved_filename = f"{source_id}_{file.filename}"
+    saved_path = os.path.join(uploads_dir, saved_filename)
 
-from fastapi import UploadFile, File
+    contents = await file.read()
+    with open(saved_path, "wb") as f:
+        f.write(contents)
+
+    try:
+        res = video_person_engine.process_video_evidence(
+            video_path=saved_path,
+            source_id=source_id,
+            source_name=source_name or f"{source_id}: {file.filename}",
+            location=location or "Surveillance Sector"
+        )
+        return {
+            "status": "success",
+            "message": f"Successfully processed video evidence [{source_id}].",
+            "video": res
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to process video evidence: {str(e)}")
+
+@app.delete("/api/person/videos/{source_id}")
+def delete_person_video_endpoint(source_id: str, db: Session = Depends(get_db)):
+    """Deletes a video evidence source and all associated tracks/sightings."""
+    from .models import PersonVideoTrack, PersonVideoSighting
+    ve = db.query(VideoEvidence).filter(VideoEvidence.source_id == source_id).first()
+    if not ve:
+        raise HTTPException(status_code=404, detail=f"Video source {source_id} not found.")
+
+    db.query(PersonVideoSighting).filter(PersonVideoSighting.source_id == source_id).delete()
+    db.query(PersonVideoTrack).filter(PersonVideoTrack.source_id == source_id).delete()
+    db.delete(ve)
+    db.commit()
+    return {"status": "success", "message": f"Removed video evidence source {source_id}."}
+
+@app.get("/api/person/evidence/{source_id}/{track_id}")
+def get_person_evidence_representative_crop(source_id: str, track_id: str):
+    """
+    Direct endpoint serving the representative evidence crop image with correct MIME type.
+    """
+    file_path = video_person_engine.get_evidence_crop_file_path(source_id, track_id)
+    if not file_path or not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"Evidence crop for {source_id}/{track_id} not found.")
+    return FileResponse(file_path, media_type="image/jpeg")
+
+@app.get("/api/person/evidence/{source_id}/{track_id}/{filename}")
+def get_person_evidence_sighting_crop(source_id: str, track_id: str, filename: str):
+    """
+    Direct endpoint serving a specific sighting frame evidence image with correct MIME type.
+    """
+    file_path = video_person_engine.get_evidence_crop_file_path(source_id, track_id, filename)
+    if not file_path or not os.path.exists(file_path):
+        raise HTTPException(status_code=404, detail=f"Evidence crop {filename} for {source_id}/{track_id} not found.")
+    return FileResponse(file_path, media_type="image/jpeg")
 
 @app.post("/api/person/search")
 async def search_person(
     file: UploadFile = File(...),
-    min_similarity: float = 0.30,
+    min_similarity: float = Query(0.50, ge=0.0, le=1.0),
     location: Optional[str] = Query(None),
-    time_window: Optional[str] = Query(None)
+    time_window: Optional[str] = Query(None),
+    limit: int = Query(5)
 ):
     """
-    Person Finder (ReID):
-    Accepts uploaded reference photo, extracts appearance embedding,
-    and returns ranked sightings across cameras filtered by location and time window.
+    Missing Person Video Re-Identification API:
+    Accepts uploaded reference query photo, extracts appearance embedding,
+    and returns ranked Top-K candidate person sightings from processed CCTV/video evidence.
     """
-    if not reid_engine:
-        raise HTTPException(status_code=503, detail="ReID Engine not initialized")
-    
     contents = await file.read()
-    results = reid_engine.search_person_by_image(
-        contents,
+    nparr = np.frombuffer(contents, np.uint8)
+    query_img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+
+    if query_img is None:
+        raise HTTPException(status_code=400, detail="Invalid reference image uploaded.")
+
+    # Search against processed video evidence with strict top-K limit (max 5)
+    effective_limit = min(max(1, limit), 5)
+    search_result = video_person_engine.search_person_gallery(
+        query_img=query_img,
         min_similarity=min_similarity,
-        location_filter=location,
-        time_window=time_window
+        source_id=location,
+        time_window=time_window,
+        limit=effective_limit
     )
+
     return {
         "query_filename": file.filename,
-        "location_filter": location or "All",
-        "time_window": time_window or "All",
-        "total_matches": len(results),
-        "matches": results
+        "source_filter": location or "All Video Sources",
+        "min_similarity": min_similarity,
+        "limit": search_result["limit"],
+        "total_candidates": search_result["total_candidates"],
+        "returned_candidates": search_result["returned_candidates"],
+        "matches": search_result["matches"]
     }
 
-@app.get("/api/vehicle/search")
-def search_vehicle(
-    plate: Optional[str] = Query(None),
-    vehicle_type: Optional[str] = Query(None),
-    color: Optional[str] = Query(None)
+
+# ================= VEHICLE IDENTIFICATION & RE-ID ENDPOINTS =================
+
+@app.get("/api/vehicles")
+def get_vehicles_endpoint(
+    page: int = Query(1, ge=1),
+    limit: int = Query(25, ge=1, le=100),
+    db: Session = Depends(get_db)
 ):
     """
-    Vehicle Finder:
-    Searches logged vehicles by number plate or visual description (color + type).
+    Browse Logged Vehicles API:
+    Retrieves paginated vehicle records with latest CCTV sighting and metadata.
     """
-    if not reid_engine:
-        raise HTTPException(status_code=503, detail="Vehicle Finder not initialized")
-    
-    results = reid_engine.search_vehicles(plate=plate, vehicle_type=vehicle_type, color=color)
-    return {"total_matches": len(results), "matches": results}
+    return vehicle_service.get_vehicles_paginated(db, page=page, limit=limit)
+
+@app.get("/api/vehicles/search")
+@app.get("/api/vehicle/search")
+def search_vehicles_endpoint(
+    plate: Optional[str] = Query(None),
+    plate_number: Optional[str] = Query(None),
+    vehicle_type: Optional[str] = Query(None),
+    type: Optional[str] = Query(None),
+    vehicle_model: Optional[str] = Query(None),
+    model: Optional[str] = Query(None),
+    color: Optional[str] = Query(None),
+    location: Optional[str] = Query(None),
+    start_time: Optional[str] = Query(None),
+    end_time: Optional[str] = Query(None),
+    time_range: Optional[str] = Query(None),
+    only_stolen: bool = Query(False),
+    db: Session = Depends(get_db)
+):
+    """
+    Vehicle Finder Search API:
+    Searches logged vehicles by plate number or visual appearance attributes (model, color, location).
+    """
+    p = plate_number or plate
+    t = vehicle_type or type
+    m = vehicle_model or model
+
+    return vehicle_service.search_vehicles(
+        db,
+        plate_number=p,
+        vehicle_type=t,
+        vehicle_model=m,
+        color=color,
+        location=location,
+        start_time=start_time,
+        end_time=end_time,
+        time_range=time_range,
+        only_stolen=only_stolen
+    )
+
+@app.post("/api/vehicles/search/image")
+@app.post("/api/vehicle/search-image")
+async def search_vehicle_by_image_endpoint(
+    file: UploadFile = File(...),
+    location: Optional[str] = Query(None),
+    db: Session = Depends(get_db)
+):
+    """
+    Vehicle Re-ID by Uploaded Photo / Plate Crop:
+    Extracts plate & visual characteristics from photograph and matches against vehicle database.
+    """
+    try:
+        contents = await file.read()
+        if not contents:
+            raise HTTPException(status_code=400, detail="Uploaded file is empty.")
+        return vehicle_service.search_vehicle_by_image(db, contents, location=location)
+    except Exception as e:
+        logger.error(f"Error processing vehicle image search: {e}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Image processing error: {str(e)}")
+
+@app.get("/api/vehicles/{vehicle_id}")
+def get_single_vehicle(vehicle_id: str, db: Session = Depends(get_db)):
+    """Retrieves full investigation dossier for a specific vehicle."""
+    dossier = vehicle_service.get_vehicle_by_id(db, vehicle_id)
+    if not dossier:
+        raise HTTPException(status_code=404, detail=f"Vehicle {vehicle_id} not found in database.")
+    return dossier
+
+@app.get("/api/vehicles/{vehicle_id}/sightings")
+def get_vehicle_sightings_endpoint(vehicle_id: str, db: Session = Depends(get_db)):
+    """Retrieves historical sighting timeline for a specific vehicle."""
+    return vehicle_service.get_vehicle_sightings(db, vehicle_id)
+
+@app.post("/api/vehicles/{vehicle_id}/flag")
+@app.post("/api/vehicle/flag")
+def flag_vehicle_endpoint(
+    req: VehicleFlagRequest,
+    vehicle_id: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """
+    Investigator Action: Flag or unflag a vehicle in the surveillance database.
+    """
+    v_id = vehicle_id or req.vehicle_id
+    if not v_id:
+        raise HTTPException(status_code=400, detail="vehicle_id is required.")
+
+    is_flagged = req.is_flagged if req.is_flagged is not None else (req.is_stolen if req.is_stolen is not None else True)
+    reason = req.reason or "Stolen Vehicle"
+    note = req.note or ""
+
+    success = vehicle_service.flag_vehicle(db, v_id, is_flagged=is_flagged, reason=reason, note=note)
+    if not success:
+        raise HTTPException(status_code=404, detail=f"Vehicle {v_id} not found.")
+
+    return {
+        "status": "success",
+        "vehicle_id": v_id,
+        "is_flagged": is_flagged,
+        "reason": reason,
+        "note": note,
+        "message": f"Vehicle {v_id} {'flagged in grid watchlist' if is_flagged else 'unflagged and restored to normal'}"
+    }
+
+
+# ================= MULTI-CITY GIS NODES =================
 
 @app.get("/api/cities")
 def get_cities():
     """Retrieve list of available multi-city CCTV mesh networks."""
-    if not reid_engine:
-        return {}
+    engine = get_reid_engine()
     cities_summary = []
-    for city_key, data in reid_engine.city_networks.items():
+    for city_key, data in engine.city_networks.items():
         cities_summary.append({
             "key": city_key,
             "name": data.get("city"),
@@ -340,10 +530,11 @@ def get_cities():
 @app.get("/api/cities/{city_name}/nodes")
 def get_city_nodes(city_name: str, limit: int = 200):
     """Retrieve camera nodes for a specific city mesh."""
-    if not reid_engine or city_name not in reid_engine.city_networks:
+    engine = get_reid_engine()
+    if city_name not in engine.city_networks:
         raise HTTPException(status_code=404, detail="City mesh not found")
     
-    city_data = reid_engine.city_networks[city_name]
+    city_data = engine.city_networks[city_name]
     nodes = city_data.get("nodes", [])[:limit]
     return {
         "city": city_name,
@@ -359,27 +550,25 @@ def get_city_nodes(city_name: str, limit: int = 200):
 @app.get("/stream/{camera_id}")
 def video_feed(camera_id: int):
     """MJPEG Video streaming endpoint for real-time live feed playback."""
-    if not stream_manager:
-        raise HTTPException(status_code=503, detail="Stream manager not ready")
-    
-    worker = stream_manager.get_worker(camera_id)
+    sm = get_stream_manager()
+    worker = sm.get_worker(camera_id)
     if not worker or not worker.is_running:
         from .database import SessionLocal
         db = SessionLocal()
         cam = db.query(Camera).filter(Camera.id == camera_id).first()
         db.close()
         if cam:
-            stream_manager.start_camera(cam.id, cam.source, cam.source_type)
+            sm.start_camera(cam.id, cam.source, cam.source_type)
 
     return StreamingResponse(
-        stream_manager.generate_mjpeg_frames(camera_id),
+        sm.generate_mjpeg_frames(camera_id),
         media_type="multipart/x-mixed-replace; boundary=frame"
     )
 
 @app.get("/stream/video/{filename}")
 def stream_video_file(filename: str):
     """Stream any unique CCTV sample file as continuous real-time MJPEG (100% browser-compatible)."""
-    import cv2, time
+    import cv2
     sample_file = os.path.join(BASE_DIR, "samples", filename)
     if not os.path.exists(sample_file):
         sample_file = os.path.join(BASE_DIR, "samples", "fight_1.mp4")
@@ -394,7 +583,6 @@ def stream_video_file(filename: str):
 
             ret, frame = cap.read()
             if not ret or frame is None:
-                # Seamlessly re-open capture to loop reliably
                 cap.release()
                 cap = cv2.VideoCapture(sample_file)
                 ret, frame = cap.read()
@@ -427,8 +615,8 @@ def start_detection(req: StartDetectionRequest, db: Session = Depends(get_db)):
     cam.is_active = True
     db.commit()
 
-    if stream_manager:
-        stream_manager.start_camera(cam.id, cam.source, cam.source_type)
+    sm = get_stream_manager()
+    sm.start_camera(cam.id, cam.source, cam.source_type)
 
     return {"status": "started", "camera_id": cam.id, "source": cam.source, "source_type": cam.source_type}
 
@@ -439,8 +627,8 @@ def stop_detection(camera_id: int, db: Session = Depends(get_db)):
     if cam:
         cam.is_active = False
         db.commit()
-    if stream_manager:
-        stream_manager.stop_camera(camera_id)
+    sm = get_stream_manager()
+    sm.stop_camera(camera_id)
     return {"status": "stopped", "camera_id": camera_id}
 
 
@@ -449,8 +637,16 @@ def stop_detection(camera_id: int, db: Session = Depends(get_db)):
 @app.get("/api/status")
 def system_status():
     """Retrieve runtime GPU, active cameras, and model telemetry."""
-    cuda_available = torch.cuda.is_available()
-    gpu_name = torch.cuda.get_device_name(0) if cuda_available else "CPU (Fallback)"
+    cuda_available = False
+    gpu_name = "CPU (Fallback)"
+    try:
+        import torch
+        cuda_available = torch.cuda.is_available()
+        if cuda_available:
+            gpu_name = torch.cuda.get_device_name(0)
+    except Exception:
+        pass
+
     active_workers = len(stream_manager.workers) if stream_manager else 0
     active_models = list(detection_engine.models.keys()) if detection_engine else []
 
@@ -460,6 +656,5 @@ def system_status():
         "gpu_name": gpu_name,
         "active_models": active_models,
         "active_camera_workers": active_workers,
-        "phase_2_modules": ["Person Finder (ReID)", "Vehicle Finder (Plate & Appearance)", "Multi-City GIS Grid (Bengaluru 1541 nodes, Mumbai, Delhi)"]
+        "phase_2_modules": ["Person Finder (ReID)", "Vehicle Finder (Plate & Appearance)", "Multi-City GIS Grid"]
     }
-

@@ -17,6 +17,18 @@ export default defineConfig({
       '/snapshots': {
         target: 'http://localhost:8000',
         changeOrigin: true
+      },
+      '/recordings': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
+      },
+      '/samples': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
+      },
+      '/evidence': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
       }
     }
   }

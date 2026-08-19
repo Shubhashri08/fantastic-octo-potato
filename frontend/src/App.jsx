@@ -3,46 +3,96 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import LiveStreamGrid from './components/LiveStreamGrid';
-import CameraMap from './components/CameraMap';
+import UnderstandConsole from './components/UnderstandConsole';
 import IdentifyConsole from './components/IdentifyConsole';
 import RespondConsole from './components/RespondConsole';
-import SystemTelemetry from './components/SystemTelemetry';
 import SnapshotModal from './components/SnapshotModal';
+import { getCameras, startDetection, stopDetection } from './api/cameras';
+import { getEvents } from './api/events';
+import { getSystemStatus } from './api/status';
 
 const pageVariants = {
-  initial: { opacity: 0, y: 8, scale: 0.995 },
-  animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.22, ease: [0.22, 1, 0.36, 1] } },
-  exit: { opacity: 0, y: -6, scale: 0.995, transition: { duration: 0.15, ease: 'easeIn' } }
+  initial: { opacity: 0, y: 6, scale: 0.998 },
+  animate: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.18, ease: [0.22, 1, 0.36, 1] } },
+  exit: { opacity: 0, y: -4, scale: 0.998, transition: { duration: 0.12, ease: 'easeIn' } }
+};
+
+const getInitialRouteState = () => {
+  const path = window.location.pathname.toLowerCase();
+  if (path.startsWith('/understand') || path.startsWith('/dashboard') || path.startsWith('/map') || path.startsWith('/reconstruction')) {
+    return { tab: 'understand', subTab: path.includes('reconstruction') ? 'reconstruction' : 'map' };
+  }
+  if (path.startsWith('/identify/vehicle')) {
+    return { tab: 'identify', subTab: 'vehicle' };
+  }
+  if (path.startsWith('/identify/person')) {
+    return { tab: 'identify', subTab: 'person' };
+  }
+  if (path.startsWith('/identify')) {
+    return { tab: 'identify', subTab: 'vehicle' };
+  }
+  if (path.startsWith('/respond')) {
+    return { tab: 'respond', subTab: null };
+  }
+  return { tab: 'sense', subTab: null };
 };
 
 export default function App() {
-  const [activeTab, setActiveTab] = useState('sense');
+  const initialRoute = getInitialRouteState();
+  const [activeTab, setActiveTab] = useState(initialRoute.tab);
+  const [identifySubTab, setIdentifySubTab] = useState(initialRoute.subTab || 'vehicle');
+  const [understandSubTab, setUnderstandSubTab] = useState(initialRoute.subTab || 'map');
   const [cameras, setCameras] = useState([]);
   const [events, setEvents] = useState([]);
   const [statusData, setStatusData] = useState(null);
   const [selectedCameraId, setSelectedCameraId] = useState(null);
   const [selectedEventForModal, setSelectedEventForModal] = useState(null);
 
+  // Client-side URL History Navigation
+  const navigateTo = useCallback((tab, subTab = null) => {
+    let path = '/surveillance';
+    if (tab === 'understand') {
+      const u = subTab || understandSubTab || 'map';
+      path = u === 'reconstruction' ? '/understand/reconstruction' : '/dashboard';
+    }
+    else if (tab === 'identify') {
+      const s = subTab || identifySubTab || 'vehicle';
+      path = `/identify/${s}`;
+    }
+    else if (tab === 'respond') {
+      path = '/respond';
+    }
+
+    if (window.location.pathname !== path) {
+      window.history.pushState({}, '', path);
+    }
+    setActiveTab(tab);
+    if (tab === 'identify' && subTab) setIdentifySubTab(subTab);
+    if (tab === 'understand' && subTab) setUnderstandSubTab(subTab);
+  }, [identifySubTab, understandSubTab]);
+
+  useEffect(() => {
+    const handlePopState = () => {
+      const route = getInitialRouteState();
+      setActiveTab(route.tab);
+      if (route.tab === 'identify' && route.subTab) setIdentifySubTab(route.subTab);
+      if (route.tab === 'understand' && route.subTab) setUnderstandSubTab(route.subTab);
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
   const fetchData = useCallback(async () => {
     try {
-      const [camRes, evRes, statusRes] = await Promise.all([
-        fetch('/api/cameras').catch(() => null),
-        fetch('/api/events').catch(() => null),
-        fetch('/api/status').catch(() => null)
+      const [camData, evData, statData] = await Promise.all([
+        getCameras().catch(() => []),
+        getEvents().catch(() => []),
+        getSystemStatus().catch(() => null)
       ]);
 
-      if (camRes && camRes.ok) {
-        const camData = await camRes.json();
-        setCameras(camData);
-      }
-      if (evRes && evRes.ok) {
-        const evData = await evRes.json();
-        setEvents(evData);
-      }
-      if (statusRes && statusRes.ok) {
-        const statData = await statusRes.json();
-        setStatusData(statData);
-      }
+      if (Array.isArray(camData)) setCameras(camData);
+      if (Array.isArray(evData)) setEvents(evData);
+      if (statData) setStatusData(statData);
     } catch (err) {
       console.error('Error fetching telemetry:', err);
     }
@@ -50,21 +100,13 @@ export default function App() {
 
   useEffect(() => {
     fetchData();
-    const interval = setInterval(fetchData, 3000);
+    const interval = setInterval(fetchData, 4000);
     return () => clearInterval(interval);
   }, [fetchData]);
 
   const handleStartDetection = async (cameraId, source, sourceType) => {
     try {
-      await fetch('/api/start_detection', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          camera_id: cameraId,
-          source: source,
-          source_type: sourceType
-        })
-      });
+      await startDetection(cameraId, source, sourceType);
       fetchData();
     } catch (err) {
       console.error('Error starting camera stream:', err);
@@ -73,9 +115,7 @@ export default function App() {
 
   const handleStopDetection = async (cameraId) => {
     try {
-      await fetch(`/api/stop_detection?camera_id=${cameraId}`, {
-        method: 'POST'
-      });
+      await stopDetection(cameraId);
       fetchData();
     } catch (err) {
       console.error('Error stopping camera stream:', err);
@@ -84,7 +124,7 @@ export default function App() {
 
   const handleNavigateToLive = (cameraId) => {
     if (cameraId) setSelectedCameraId(cameraId);
-    setActiveTab('sense');
+    navigateTo('sense');
   };
 
   return (
@@ -99,10 +139,10 @@ export default function App() {
 
       {/* Main Body */}
       <div className="flex flex-1 h-[calc(100vh-56px)] overflow-hidden">
-        {/* Sidebar */}
+        {/* Sidebar (Sense, Understand, Identify, Respond) */}
         <Sidebar
           activeTab={activeTab}
-          onSelectTab={setActiveTab}
+          onSelectTab={(tabId) => navigateTo(tabId)}
           incidentCount={events.length}
         />
 
@@ -137,12 +177,13 @@ export default function App() {
                 exit="exit"
                 className="h-full w-full"
               >
-                <CameraMap
+                <UnderstandConsole
                   cameras={cameras}
                   events={events}
                   selectedCameraId={selectedCameraId}
                   onSelectCamera={setSelectedCameraId}
                   onNavigateToLive={handleNavigateToLive}
+                  initialMode={understandSubTab}
                 />
               </motion.div>
             )}
@@ -161,7 +202,9 @@ export default function App() {
                   selectedCameraId={selectedCameraId}
                   onSelectCamera={setSelectedCameraId}
                   onSelectEvent={setSelectedEventForModal}
-                  onNavigateToMap={() => setActiveTab('understand')}
+                  onNavigateToMap={() => navigateTo('understand')}
+                  activeSubTab={identifySubTab}
+                  onChangeSubTab={(newSubTab) => navigateTo('identify', newSubTab)}
                 />
               </motion.div>
             )}
@@ -182,28 +225,11 @@ export default function App() {
                 />
               </motion.div>
             )}
-
-            {activeTab === 'connect' && (
-              <motion.div
-                key="connect"
-                variants={pageVariants}
-                initial="initial"
-                animate="animate"
-                exit="exit"
-                className="h-full w-full"
-              >
-                <SystemTelemetry
-                  statusData={statusData}
-                  cameras={cameras}
-                  events={events}
-                />
-              </motion.div>
-            )}
           </AnimatePresence>
         </main>
       </div>
 
-      {/* High-Resolution Verification Snapshot Lightbox Modal */}
+      {/* Lightbox Modal */}
       <AnimatePresence>
         {selectedEventForModal && (
           <SnapshotModal

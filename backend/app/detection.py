@@ -139,7 +139,6 @@ class DetectionEngine:
                 base_results = self.models["base"].predict(
                     source=frame,
                     device=self.device,
-                    half=(self.device == "cuda"),
                     conf=0.35,
                     imgsz=640,
                     verbose=False
@@ -315,41 +314,58 @@ class DetectionEngine:
                 cv2.rectangle(annotated_frame, (x1, max(0, y1 - 18)), (x1 + vw + 6, max(18, y1)), (3, 183, 255), -1)
                 cv2.putText(annotated_frame, v_label, (x1 + 3, max(14, y1 - 4)), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (10, 10, 10), 1, cv2.LINE_AA)
 
-        # 6. Save Confirmed Incidents to Database & Capture Evidence Snapshot
+        # 6. Save Confirmed Incidents to Database & Capture Evidence Snapshot (with Temporal Aggregation)
         for confirmed_type in confirmed_types:
             type_dets = [d for d in raw_detections if d["event_type"] == confirmed_type and d.get("is_incident", False)]
             if not type_dets:
                 continue
             best_det = max(type_dets, key=lambda d: d["confidence"])
 
-            timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
-            snapshot_filename = f"incident_cam{camera_id}_{confirmed_type}_{timestamp_str}.jpg"
-            snapshot_full_path = os.path.join(SNAPSHOTS_DIR, snapshot_filename)
-            cv2.imwrite(snapshot_full_path, annotated_frame)
-
             db: Session = SessionLocal()
             try:
-                event_record = Event(
-                    camera_id=camera_id,
-                    event_type=confirmed_type,
-                    confidence=best_det["confidence"],
-                    bbox=json.dumps(best_det["bbox"]),
-                    snapshot_path=f"/snapshots/{snapshot_filename}",
-                    severity="High"
-                )
-                db.add(event_record)
-                db.commit()
-                db.refresh(event_record)
-                newly_saved_events.append({
-                    "id": event_record.id,
-                    "camera_id": camera_id,
-                    "event_type": confirmed_type,
-                    "confidence": event_record.confidence,
-                    "timestamp": str(event_record.timestamp),
-                    "snapshot_path": event_record.snapshot_path,
-                    "severity": "High"
-                })
-                logger.info(f"🚨 [CONFIRMED {confirmed_type.upper()}] Cam {camera_id} | Conf: {best_det['confidence']:.2f} | Evidence: {snapshot_filename}")
+                # Check for recent active incident on the same camera within 30-second window
+                recent_cutoff = datetime.datetime.now() - datetime.timedelta(seconds=30)
+                existing_incident = db.query(Event).filter(
+                    Event.camera_id == camera_id,
+                    Event.event_type == confirmed_type,
+                    Event.timestamp >= recent_cutoff
+                ).order_by(Event.timestamp.desc()).first()
+
+                if existing_incident:
+                    # Update active incident rather than inserting separate duplicates
+                    existing_incident.confirmation_count = (existing_incident.confirmation_count or 1) + 1
+                    existing_incident.confidence = max(existing_incident.confidence, best_det["confidence"])
+                    db.commit()
+                else:
+                    # New distinct investigative incident
+                    timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
+                    snapshot_filename = f"incident_cam{camera_id}_{confirmed_type}_{timestamp_str}.jpg"
+                    snapshot_full_path = os.path.join(SNAPSHOTS_DIR, snapshot_filename)
+                    cv2.imwrite(snapshot_full_path, annotated_frame)
+
+                    event_record = Event(
+                        camera_id=camera_id,
+                        event_type=confirmed_type,
+                        confidence=best_det["confidence"],
+                        bbox=json.dumps(best_det["bbox"]),
+                        snapshot_path=f"/snapshots/{snapshot_filename}",
+                        severity="Critical" if confirmed_type in ["Fighting", "Fire"] else "High",
+                        status="Active",
+                        confirmation_count=1
+                    )
+                    db.add(event_record)
+                    db.commit()
+                    db.refresh(event_record)
+                    newly_saved_events.append({
+                        "id": event_record.id,
+                        "camera_id": camera_id,
+                        "event_type": confirmed_type,
+                        "confidence": event_record.confidence,
+                        "timestamp": str(event_record.timestamp),
+                        "snapshot_path": event_record.snapshot_path,
+                        "severity": event_record.severity
+                    })
+                    logger.info(f"🚨 [NEW INVESTIGATIVE INCIDENT #{event_record.id}] Cam {camera_id} | {confirmed_type.upper()} | Conf: {best_det['confidence']:.2f}")
             except Exception as db_err:
                 logger.error(f"Failed to persist incident to DB: {db_err}")
                 db.rollback()

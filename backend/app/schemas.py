@@ -50,3 +50,13 @@ class DetectionStatusResponse(BaseModel):
     source: str
     fps: float
     active_models: List[str]
+
+class VehicleFlagRequest(BaseModel):
+    vehicle_id: Optional[str] = None
+    is_flagged: Optional[bool] = None
+    is_stolen: Optional[bool] = None
+    reason: Optional[str] = "Stolen Vehicle"
+    note: Optional[str] = None
+    bolo_status: Optional[str] = None
+
+
