@@ -13,6 +13,8 @@ export default function LiveStreamGrid({
   const [editSource, setEditSource] = useState('');
   const [editSourceType, setEditSourceType] = useState('video');
 
+  const [viewMode, setViewMode] = useState('primary'); // 'primary' (1-3), 'all' (1-6), or specific camId
+
   const openConfigDrawer = (cam) => {
     setEditingCamId(cam.id);
     setEditSource(cam.source || '');
@@ -24,9 +26,23 @@ export default function LiveStreamGrid({
     setEditingCamId(null);
   };
 
-  const activeCameras = cameras.filter(c => c.is_active);
-  const focusedCam = selectedCameraId ? cameras.find((c) => c.id === selectedCameraId) : null;
-  const displayCameras = focusedCam ? [focusedCam] : activeCameras.slice(0, 3);
+  const activeCamerasCount = cameras.filter(c => c.is_active).length;
+  
+  let displayCameras = [];
+  if (selectedCameraId) {
+    const focused = cameras.find((c) => c.id === selectedCameraId);
+    displayCameras = focused ? [focused] : cameras.slice(0, 3);
+  } else if (viewMode === 'all') {
+    displayCameras = cameras;
+  } else if (viewMode === 'primary') {
+    // Show CAM-01, CAM-02, CAM-03 by default
+    displayCameras = cameras.length >= 3 ? cameras.slice(0, 3) : cameras;
+  } else if (typeof viewMode === 'number') {
+    const single = cameras.find(c => c.id === viewMode);
+    displayCameras = single ? [single] : cameras.slice(0, 3);
+  } else {
+    displayCameras = cameras.slice(0, 3);
+  }
 
   return (
     <div className="flex flex-col h-full overflow-y-auto p-5 bg-[#060709] text-[#e5e2e1] gap-4">
@@ -42,7 +58,7 @@ export default function LiveStreamGrid({
                 Sense Layer — Live Surveillance Matrix
               </h2>
               <span className="text-[10px] font-mono px-2 py-0.5 rounded bg-[#1c2e26] text-[#9ed1c1] border border-[#2a4d3e] font-bold">
-                {activeCameras.length} STREAMS ACTIVE
+                {activeCamerasCount} OF {cameras.length} ACTIVE
               </span>
             </div>
             <p className="text-[11px] text-[#858585] font-mono mt-0.5">
@@ -51,27 +67,94 @@ export default function LiveStreamGrid({
           </div>
         </div>
 
-        {focusedCam && (
-          <motion.button
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.96 }}
-            onClick={() => onSelectCamera(null)}
-            className="flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg bg-[#161822] hover:bg-[#202433] text-[#f5dfc0] border border-white/[0.08] text-xs font-mono font-bold transition shadow"
+        {/* View Switcher Controls */}
+        <div className="flex items-center gap-1.5 bg-[#0e0f16] p-1 rounded-xl border border-white/[0.08]">
+          <button
+            onClick={() => { setViewMode('primary'); onSelectCamera(null); }}
+            className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition ${
+              viewMode === 'primary' && !selectedCameraId
+                ? 'bg-[#f5dfc0] text-[#0A0A0A]'
+                : 'text-[#858585] hover:text-[#e5e2e1]'
+            }`}
           >
-            <Minimize2 className="w-3.5 h-3.5" /> Return to 3-View
-          </motion.button>
-        )}
+            Main Matrix (CAM 1-3)
+          </button>
+          <button
+            onClick={() => { setViewMode('all'); onSelectCamera(null); }}
+            className={`px-3 py-1 rounded-lg text-xs font-mono font-bold transition ${
+              viewMode === 'all' && !selectedCameraId
+                ? 'bg-[#f5dfc0] text-[#0A0A0A]'
+                : 'text-[#858585] hover:text-[#e5e2e1]'
+            }`}
+          >
+            All Nodes ({cameras.length})
+          </button>
+          <button
+            onClick={() => { setViewMode(3); onSelectCamera(3); }}
+            className={`px-3 py-1 rounded-lg text-xs font-mono font-bold flex items-center gap-1 transition ${
+              selectedCameraId === 3 || viewMode === 3
+                ? 'bg-[#1c2e26] text-[#9ed1c1] border border-[#2a4d3e]'
+                : 'text-[#cfc5b9] hover:text-[#f5dfc0]'
+            }`}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-[#00f2fe] animate-pulse" />
+            CAM-03 (Network IP)
+          </button>
+
+          {selectedCameraId && (
+            <motion.button
+              whileHover={{ scale: 1.04 }}
+              whileTap={{ scale: 0.96 }}
+              onClick={() => { onSelectCamera(null); setViewMode('primary'); }}
+              className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#161822] hover:bg-[#202433] text-[#f5dfc0] border border-white/[0.08] text-xs font-mono font-bold transition ml-1"
+            >
+              <Minimize2 className="w-3 h-3" /> Reset View
+            </motion.button>
+          )}
+        </div>
+      </div>
+
+      {/* Quick Channel Bar */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        <span className="text-[10px] font-mono text-[#858585] uppercase tracking-wider whitespace-nowrap">Channels:</span>
+        {cameras.map((cam) => {
+          const isCurrent = (selectedCameraId === cam.id) || (displayCameras.length === 1 && displayCameras[0]?.id === cam.id);
+          return (
+            <button
+              key={cam.id}
+              onClick={() => {
+                setViewMode(cam.id);
+                onSelectCamera(cam.id);
+              }}
+              className={`px-2.5 py-1 rounded-lg text-[11px] font-mono whitespace-nowrap transition flex items-center gap-1.5 border ${
+                isCurrent
+                  ? 'bg-[#202433] text-[#f5dfc0] border-[#f5dfc0]'
+                  : cam.is_active
+                  ? 'bg-[#10131a] text-[#cfc5b9] border-white/[0.08] hover:border-white/[0.2]'
+                  : 'bg-[#0d0e14] text-[#858585] border-white/[0.04] hover:text-[#cfc5b9]'
+              }`}
+            >
+              <span className={`w-1.5 h-1.5 rounded-full ${cam.is_active ? 'bg-[#00f2fe]' : 'bg-[#555]'}`} />
+              CAM-0{cam.id} {cam.id === 3 ? '(Network Feed)' : ''}
+            </button>
+          );
+        })}
       </div>
 
       {/* Grid Layout (Clean 3-Feed Bento Grid) */}
       <div
         className={`grid gap-4 flex-1 ${
-          focusedCam ? 'grid-cols-1' : 'grid-cols-1 lg:grid-cols-3'
+          displayCameras.length === 1
+            ? 'grid-cols-1 max-w-4xl mx-auto w-full'
+            : displayCameras.length === 2
+            ? 'grid-cols-1 md:grid-cols-2'
+            : 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3'
         }`}
       >
         {displayCameras.map((cam, idx) => {
           const isSelected = selectedCameraId === cam.id;
           const isWebcam = cam.source_type === 'webcam' || cam.source === '0';
+          const isNetwork = cam.id === 3 || cam.source_type === 'rtsp' || cam.source?.startsWith('http');
 
           return (
             <motion.div
@@ -88,22 +171,35 @@ export default function LiveStreamGrid({
               <div className="flex items-center justify-between px-3.5 py-2.5 bg-[#11121a] border-b border-white/[0.06] select-none">
                 <div className="flex items-center gap-2">
                   <span className="flex items-center gap-1.5 text-[10px] font-mono font-bold text-[#ffd9d7]">
-                    <span className="w-2 h-2 rounded-full bg-[#8e3335] animate-pulse" />
-                    REC CAM-0{cam.id}
+                    <span className={`w-2 h-2 rounded-full ${cam.is_active ? 'bg-[#8e3335] animate-pulse' : 'bg-[#555]'}`} />
+                    {cam.is_active ? 'REC' : 'OFFLINE'} CAM-0{cam.id}
                   </span>
-                  <span className="text-[11px] font-bold text-[#e5e2e1] truncate max-w-[170px]">
+                  <span className="text-[11px] font-bold text-[#e5e2e1] truncate max-w-[170px]" title={cam.name}>
                     {cam.name}
                   </span>
                 </div>
 
                 <div className="flex items-center gap-1.5">
+                  {isNetwork && (
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#1c2e26] text-[#9ed1c1] border border-[#2a4d3e] font-bold">
+                      IP / NETWORK
+                    </span>
+                  )}
                   {isWebcam && (
                     <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-[#f5dfc0] text-[#0A0A0A] font-black">
                       LIVE CAM
                     </span>
                   )}
                   <button
-                    onClick={() => onSelectCamera(isSelected ? null : cam.id)}
+                    onClick={() => {
+                      if (selectedCameraId === cam.id) {
+                        onSelectCamera(null);
+                        setViewMode('primary');
+                      } else {
+                        onSelectCamera(cam.id);
+                        setViewMode(cam.id);
+                      }
+                    }}
                     className="p-1 text-[#858585] hover:text-[#f5dfc0] transition"
                   >
                     {isSelected ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
@@ -112,12 +208,34 @@ export default function LiveStreamGrid({
               </div>
 
               {/* Video Stream Container */}
-              <div className="relative aspect-video bg-black overflow-hidden flex items-center justify-center flex-1">
-                <img
-                  src={`/stream/${cam.id}`}
-                  alt={cam.name}
-                  className="w-full h-full object-contain"
-                />
+              <div className="relative aspect-video bg-black overflow-hidden flex items-center justify-center flex-1 min-h-[220px]">
+                {cam.is_active ? (
+                  <img
+                    src={`/stream/${cam.id}`}
+                    alt={cam.name}
+                    className="w-full h-full object-contain"
+                    onError={(e) => {
+                      // Fallback image handling
+                    }}
+                  />
+                ) : (
+                  <div className="flex flex-col items-center justify-center p-6 text-center space-y-3">
+                    <Video className="w-10 h-10 text-[#858585] opacity-40" />
+                    <div>
+                      <div className="text-xs font-mono font-bold text-[#e5e2e1]">CAMERA STANDBY</div>
+                      <div className="text-[10px] font-mono text-[#858585] mt-0.5 truncate max-w-[240px]">
+                        Source: {cam.source || 'Not configured'}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => onStartDetection(cam.id, cam.source, cam.source_type)}
+                      className="px-3.5 py-1.5 bg-[#142820] hover:bg-[#1c382c] text-[#9ed1c1] border border-[#1d4f43] rounded-lg text-xs font-mono font-bold flex items-center gap-1.5 transition shadow"
+                    >
+                      <Play className="w-3 h-3" /> Connect & Start Feed
+                    </button>
+                  </div>
+                )}
+                
                 <div className="absolute top-2 left-2 bg-black/75 px-2 py-0.5 border border-white/[0.08] text-[9px] font-mono text-[#9ed1c1] rounded">
                   NODE-0{cam.id} // {cam.source_type.toUpperCase()}
                 </div>

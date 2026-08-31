@@ -1,22 +1,59 @@
-# Dependencies
-node_modules/
-dist/
-.vite/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+# ==============================================================================
+# VIGRAH AI — GITIGNORE CONFIGURATION
+# ==============================================================================
 
-# Python & Environments
-venv/
-env/
-ENV/
+# Operating System & IDE Files
+.DS_Store
+**/.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+.Spotlight-V100
+.Trashes
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+Thumbs.db
+ehthumbs.db
+
+# Python & Build Artifacts
 __pycache__/
+**/*__pycache__*
 *.py[cod]
 *$py.class
-.pytest_cache/
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
 *.egg-info/
+.installed.cfg
+*.egg
+.pytest_cache/
 .coverage
 htmlcov/
+.tox/
+.nox/
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+env/
+env.bak/
+venv.bak/
 
 # Environment Variables & Secrets
 .env
@@ -24,30 +61,47 @@ htmlcov/
 .env.*.local
 *.pem
 *.key
+*.cert
+*.crt
 
-# SQLite Databases & Local Storage
-backend/vigrah.db
-backend/vigrah_audit.db
-*.sqlite
+# Local Databases & Caches
 *.db
+*.sqlite
+*.sqlite3
+vigrah.db
+backend/vigrah.db
+backend/reid_gallery_cache.json
 
-# Model Weights & Large Checkpoints
+# Model Weights & Checkpoints (Heavy Binaries)
+*.pth
+*.pt
+*.onnx
+*.bin
+*.weights
+*.engine
+backend/weights/*.pth
 backend/weights/*.pt
 backend/weights/*.onnx
-backend/weights/*.bin
+backend/yolo11n.pt
+!backend/weights/.gitkeep
 
-# Generated Media, DVR Recordings & Evidence
+# Runtime Media, Snapshots, Uploads & Evidence
+backend/snapshots/incident_*.jpg
+backend/snapshots/*.jpg
+backend/snapshots/*.png
+!backend/snapshots/crop_*.jpg
 backend/recordings/*.mp4
 backend/recordings/*.avi
-backend/uploads/videos/*
-backend/evidence/persons/*
-backend/snapshots/*.jpg
+backend/uploads/*
+!backend/uploads/.gitkeep
+backend/evidence/*
+!backend/evidence/.gitkeep
 .tempmediaStorage/
 *.log
 
-# OS & IDE Configuration
-.DS_Store
-Thumbs.db
-.vscode/
-.idea/
-.gemini/
+# Node.js & Frontend Artifacts
+node_modules/
+frontend/node_modules/
+frontend/dist/
+.npm
+.eslintcache

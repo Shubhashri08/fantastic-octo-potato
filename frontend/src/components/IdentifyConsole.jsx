@@ -287,7 +287,7 @@ export default function IdentifyConsole({
 
   const [uploadedImage, setUploadedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
-  const [minSimilarity, setMinSimilarity] = useState(0.50);
+  const [minSimilarity, setMinSimilarity] = useState(0.35);
   const [selectedSourceFilter, setSelectedSourceFilter] = useState('ALL');
   const [selectedTimeRange, setSelectedTimeRange] = useState('all');
   const [personSearchResults, setPersonSearchResults] = useState([]);
@@ -356,14 +356,13 @@ export default function IdentifyConsole({
         minSimilarity,
         selectedSourceFilter,
         selectedTimeRange,
-        5
+        10
       );
 
       const matches = data.matches || [];
       const totalCandidates = data.total_candidates || matches.length;
       setPersonSearchTotalEvaluated(totalCandidates);
 
-      // Clean normalization guarantee (strictly 0..100) & Top 5 enforcement
       const normalizedMatches = matches
         .map((m, idx) => {
           let rawSim = typeof m.similarity === 'number' ? m.similarity : 0;
@@ -378,14 +377,13 @@ export default function IdentifyConsole({
           };
         })
         .filter(m => m.normalized_similarity >= minSimilarity)
-        .sort((a, b) => b.similarity_percent - a.similarity_percent)
-        .slice(0, 5);
+        .sort((a, b) => b.similarity_percent - a.similarity_percent);
 
       setPersonSearchResults(normalizedMatches);
       setPersonSearchStatus(normalizedMatches.length > 0 ? 'found' : 'no_match');
     } catch (err) {
       console.error('Error during person search:', err);
-      setPersonSearchError('Failed to search video person gallery. Please try another reference photo.');
+      setPersonSearchError(err.message || 'Failed to search video person gallery. Please try another reference photo.');
       setPersonSearchStatus('error');
     } finally {
       setIsSearchingPerson(false);
@@ -401,20 +399,41 @@ export default function IdentifyConsole({
     setUploadProgressText('Uploading video evidence file...');
 
     try {
-      await new Promise(r => setTimeout(r, 200));
-      setUploadProgressText('Sampling video frames & detecting persons...');
+      const uploadRes = await uploadVideoEvidence(
+        uploadVideoFile, 
+        uploadSourceName, 
+        'CAM-01', 
+        uploadLocation
+      );
       
-      await uploadVideoEvidence(uploadVideoFile, uploadSourceName, uploadLocation);
-      
-      setUploadProgressText('Indexing person appearance embeddings...');
-      await new Promise(r => setTimeout(r, 200));
+      const sourceId = uploadRes.video?.source_id;
+      setUploadProgressText(`Indexing video [${sourceId}] (YOLO11 Detection + ByteTrack + TransReID)...`);
+
+      // Poll until ready or failed
+      let isReady = false;
+      let attempts = 0;
+      while (!isReady && attempts < 60) {
+        await new Promise(r => setTimeout(r, 2000));
+        attempts++;
+        const currentSources = await getVideoEvidenceSources();
+        setVideoSources(currentSources || []);
+        const target = currentSources.find(s => s.source_id === sourceId);
+        if (target) {
+          if (target.status === 'ready') {
+            isReady = true;
+            break;
+          } else if (target.status === 'failed') {
+            throw new Error(target.error_message || 'Video processing failed.');
+          }
+        }
+      }
 
       await loadVideoSources();
       setIsUploadVideoModalOpen(false);
       setUploadVideoFile(null);
       setUploadSourceName('');
       setUploadLocation('');
-      setFlagToast({ type: 'success', message: 'CCTV Video evidence processed and indexed into Person Finder.' });
+      setFlagToast({ type: 'success', message: `Video evidence [${sourceId}] indexed into Person Finder gallery.` });
     } catch (err) {
       console.error('Error uploading video evidence:', err);
       setVideoUploadError(err.message || 'Failed to process video evidence.');
@@ -1171,7 +1190,7 @@ export default function IdentifyConsole({
                   <div className="space-y-2">
                     <Upload className="w-8 h-8 text-[#858585] mx-auto" />
                     <div className="text-xs font-bold text-[#e5e2e1]">Click to Browse or Drag Reference Photo Here</div>
-                    <div className="text-[10px] text-[#737373]">Extracts 128-D Appearance Vector and searches all indexed CCTV footage</div>
+                    <div className="text-[10px] text-[#737373]">Extracts 512-D Deep OSNet Appearance Embedding & searches indexed CCTV footage</div>
                   </div>
                 )}
               </div>
@@ -1260,91 +1279,94 @@ export default function IdentifyConsole({
                   <span className="text-[11px] text-[#858585]">
                     {personSearchTotalEvaluated > personSearchResults.length 
                       ? `${personSearchTotalEvaluated} candidates evaluated · Top ${personSearchResults.length} shown` 
-                      : 'Ranked by cosine appearance similarity'}
+                      : 'Ranked by TransReID visual similarity'}
                   </span>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {personSearchResults.map((p, pIdx) => (
-                    <motion.div
-                      key={p.track_id}
-                      whileHover={{ y: -2 }}
-                      onClick={() => setSelectedPersonForModal(p)}
-                      className={`bg-[#141414] hover:bg-[#181818] border rounded-2xl p-5 cursor-pointer shadow-xl transition space-y-3 group ${
-                        p.is_best_match || pIdx === 0 
-                          ? 'border-emerald-500/70 shadow-emerald-950/20' 
-                          : 'border-[#262626] hover:border-cyan-500/60'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                          <User className="w-4 h-4 text-[#00F2FE]" />
-                          <span className="text-xs font-bold text-[#f5dfc0]">
-                            PERSON TRACK: {p.track_id}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5">
-                          {(p.is_best_match || pIdx === 0) && (
-                            <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700 text-[9px] font-bold">
-                              ★ BEST MATCH
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pb-8">
+                  {personSearchResults.map((p, pIdx) => {
+                    const cropUrl = p.representative_crop_url || p.evidence_image_url || p.representative_crop || `/api/person/evidence/${p.source_id}/${p.track_id}`;
+                    return (
+                      <motion.div
+                        key={`${p.source_id}-${p.track_id}-${pIdx}`}
+                        whileHover={{ y: -2 }}
+                        onClick={() => setSelectedPersonForModal(p)}
+                        className={`bg-[#141414] hover:bg-[#181818] border rounded-2xl p-5 cursor-pointer shadow-xl transition space-y-3 group ${
+                          p.is_best_match || pIdx === 0 
+                            ? 'border-emerald-500/70 shadow-emerald-950/20' 
+                            : 'border-[#262626] hover:border-cyan-500/60'
+                        }`}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <User className="w-4 h-4 text-[#00F2FE]" />
+                            <span className="text-xs font-bold text-[#f5dfc0]">
+                              PERSON TRACK: {p.track_id}
                             </span>
-                          )}
-                          <span className="px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-700 text-xs font-bold">
-                            {p.similarity_percent}% MATCH
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            {(p.is_best_match || pIdx === 0) && (
+                              <span className="px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-700 text-[9px] font-bold">
+                                ★ BEST MATCH
+                              </span>
+                            )}
+                            <span className="px-2.5 py-0.5 rounded-full bg-cyan-950 text-cyan-300 border border-cyan-700 text-xs font-bold">
+                              {p.similarity_percent}% MATCH
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="flex gap-3 items-center">
+                          <div className="w-20 h-28 rounded-lg overflow-hidden border border-[#333] flex-shrink-0 bg-[#0a0a0a] relative flex items-center justify-center">
+                            <img
+                              src={cropUrl}
+                              alt={`Track ${p.track_id}`}
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.target.style.display = 'none';
+                                const fallback = e.target.parentElement.querySelector('.fallback-icon');
+                                if (fallback) fallback.style.display = 'flex';
+                              }}
+                            />
+                            <div className="fallback-icon hidden flex-col items-center justify-center p-2 text-center text-[#666]">
+                              <User className="w-6 h-6 mb-1 text-[#444]" />
+                              <span className="text-[9px] leading-tight">EVIDENCE CROP</span>
+                            </div>
+                          </div>
+
+                          <div className="space-y-1 min-w-0 flex-1 text-xs">
+                            <div className="font-bold text-[#e5e2e1] truncate">{p.camera_name || p.source_name || p.source_id}</div>
+                            <div className="text-[10px] text-[#858585] truncate">Location: {p.location || 'Surveillance Sector'}</div>
+                            <div className="text-[10px] text-cyan-300 truncate">
+                              {p.sighting_count || p.detection_count || 1} confirmed sighting(s)
+                            </div>
+                            <div className="text-[10px] text-yellow-400">
+                              Timeline: {p.first_seen || '00:00'} → {p.last_seen || p.first_seen || '00:00'}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Latest Confirmed Sighting Card */}
+                        {p.sightings && p.sightings.length > 0 && (
+                          <div className="p-2.5 rounded-xl bg-[#0a0a0a] border border-[#222] text-xs space-y-1">
+                            <div className="text-[10px] text-[#858585] uppercase">Evidence Telemetry</div>
+                            <div className="text-[#f5dfc0] font-bold truncate text-[11px]">
+                              {p.camera_id || p.source_id}: {p.camera_name || p.source_name}
+                            </div>
+                            <div className="text-[10px] text-[#858585] truncate">
+                              Occurrences: {p.sightings.map(s => s.formatted_time || `${Math.round(s.timestamp_sec || 0)}s`).join(', ')}
+                            </div>
+                          </div>
+                        )}
+
+                        <div className="pt-2 border-t border-[#222] text-right">
+                          <span className="text-xs font-bold text-[#00F2FE] group-hover:underline">
+                            [ VIEW FORENSIC DETAILS ]
                           </span>
                         </div>
-                      </div>
-
-                      <div className="flex gap-3 items-center">
-                        <div className="w-20 h-28 rounded-lg overflow-hidden border border-[#333] flex-shrink-0 bg-[#0a0a0a] relative flex items-center justify-center">
-                          <img
-                            src={p.evidence_image_url || p.representative_crop}
-                            alt={p.track_id}
-                            className="w-full h-full object-cover"
-                            onError={(e) => {
-                              e.target.style.display = 'none';
-                              const fallback = e.target.parentElement.querySelector('.fallback-icon');
-                              if (fallback) fallback.style.display = 'flex';
-                            }}
-                          />
-                          <div className="fallback-icon hidden flex-col items-center justify-center p-2 text-center text-[#666]">
-                            <User className="w-6 h-6 mb-1 text-[#444]" />
-                            <span className="text-[9px] leading-tight">EVIDENCE CROP</span>
-                          </div>
-                        </div>
-
-                        <div className="space-y-1 min-w-0 flex-1 text-xs">
-                          <div className="font-bold text-[#e5e2e1] truncate">{p.source_name}</div>
-                          <div className="text-[10px] text-[#858585] truncate">Location: {p.location}</div>
-                          <div className="text-[10px] text-cyan-300 truncate">
-                            {p.detection_count} confirmed sighting(s)
-                          </div>
-                          <div className="text-[10px] text-yellow-400">
-                            Video Timestamp: {p.latest_timestamp}
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Latest Confirmed Sighting Card */}
-                      {p.sightings && p.sightings.length > 0 && (
-                        <div className="p-2.5 rounded-xl bg-[#0a0a0a] border border-[#222] text-xs space-y-1">
-                          <div className="text-[10px] text-[#858585] uppercase">Evidence Telemetry</div>
-                          <div className="text-[#f5dfc0] font-bold truncate">
-                            {p.source_name}
-                          </div>
-                          <div className="text-[10px] text-[#858585]">
-                            Occurrences: {p.sightings.map(s => s.formatted_time).join(', ')}
-                          </div>
-                        </div>
-                      )}
-
-                      <div className="pt-2 border-t border-[#222] text-right">
-                        <span className="text-xs font-bold text-[#00F2FE] group-hover:underline">
-                          [ VIEW FORENSIC DETAILS ]
-                        </span>
-                      </div>
-                    </motion.div>
-                  ))}
+                      </motion.div>
+                    );
+                  })}
                 </div>
               </div>
             )}
@@ -1354,7 +1376,7 @@ export default function IdentifyConsole({
               <div className="bg-[#141414] border border-[#262626] rounded-2xl p-10 text-center space-y-3 font-mono">
                 <AlertCircle className="w-8 h-8 text-yellow-400 mx-auto" />
                 <h3 className="text-sm uppercase text-[#f5dfc0] font-bold">
-                  NO SUFFICIENT MATCHES
+                  NO MATCH FOUND
                 </h3>
                 <p className="text-xs text-[#858585] max-w-md mx-auto">
                   No candidate person sighting in the selected video evidence exceeded the similarity threshold (&ge; {Math.round(minSimilarity * 100)}%). Try lowering the threshold or uploading additional video footage.
@@ -1607,7 +1629,7 @@ export default function IdentifyConsole({
                     </span>
                     <div className="relative aspect-[3/4] max-h-[36vh] bg-[#06070a] rounded-xl overflow-hidden border border-emerald-500/40 flex items-center justify-center">
                       <img
-                        src={selectedPersonForModal.evidence_image_url || selectedPersonForModal.representative_crop}
+                        src={selectedPersonForModal.representative_crop_url || selectedPersonForModal.evidence_image_url || selectedPersonForModal.representative_crop || `/api/person/evidence/${selectedPersonForModal.source_id}/${selectedPersonForModal.track_id}`}
                         alt="Matched Evidence"
                         className="w-full h-full object-contain"
                         onError={(e) => {
@@ -1640,19 +1662,19 @@ export default function IdentifyConsole({
                     </div>
                     <div className="p-2.5 flex justify-between">
                       <span className="text-[#858585]">SOURCE FEED</span>
-                      <span className="font-bold text-[#e5e2e1] truncate">{selectedPersonForModal.source_name}</span>
+                      <span className="font-bold text-[#e5e2e1] truncate">{selectedPersonForModal.camera_name || selectedPersonForModal.source_name || selectedPersonForModal.source_id}</span>
                     </div>
                     <div className="p-2.5 flex justify-between">
                       <span className="text-[#858585]">LOCATION</span>
-                      <span className="font-bold text-[#e5e2e1] truncate">{selectedPersonForModal.location}</span>
+                      <span className="font-bold text-[#e5e2e1] truncate">{selectedPersonForModal.location || 'Surveillance Sector'}</span>
                     </div>
                     <div className="p-2.5 flex justify-between">
-                      <span className="text-[#858585]">LATEST TIMESTAMP</span>
-                      <span className="font-bold text-yellow-400">{selectedPersonForModal.latest_timestamp}</span>
+                      <span className="text-[#858585]">TIMELINE</span>
+                      <span className="font-bold text-yellow-400">{selectedPersonForModal.first_seen || '00:00'} → {selectedPersonForModal.last_seen || selectedPersonForModal.first_seen || '00:00'}</span>
                     </div>
                     <div className="p-2.5 flex justify-between">
                       <span className="text-[#858585]">TOTAL SIGHTINGS</span>
-                      <span className="font-bold text-cyan-300">{selectedPersonForModal.detection_count} confirmed frame(s)</span>
+                      <span className="font-bold text-cyan-300">{selectedPersonForModal.sighting_count || selectedPersonForModal.detection_count || 1} confirmed frame(s)</span>
                     </div>
                   </div>
                 </div>
@@ -1664,32 +1686,35 @@ export default function IdentifyConsole({
                   </span>
                   
                   <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
-                    {selectedPersonForModal.sightings?.map((s, sIdx) => (
-                      <div key={sIdx} className="p-3 rounded-lg bg-[#0e0f14] border border-white/[0.06] flex items-center justify-between text-xs">
-                        <div className="flex items-center gap-3">
-                          <div className="w-12 h-14 rounded border border-[#333] bg-black flex-shrink-0 overflow-hidden flex items-center justify-center">
-                            <img
-                              src={s.evidence_image_url || s.crop_path}
-                              alt={`Sighting ${sIdx+1}`}
-                              className="w-full h-full object-cover"
-                              onError={(e) => {
-                                e.target.style.display = 'none';
-                                e.target.parentElement.innerHTML = '<span class="text-[9px] text-[#666]">FRAME</span>';
-                              }}
-                            />
+                    {selectedPersonForModal.sightings?.map((s, sIdx) => {
+                      const sCropUrl = s.crop_url || s.evidence_image_url || s.crop_path || `/api/person/evidence/${selectedPersonForModal.source_id}/${selectedPersonForModal.track_id}`;
+                      return (
+                        <div key={sIdx} className="p-3 rounded-lg bg-[#0e0f14] border border-white/[0.06] flex items-center justify-between text-xs">
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-14 rounded border border-[#333] bg-black flex-shrink-0 overflow-hidden flex items-center justify-center">
+                              <img
+                                src={sCropUrl}
+                                alt={`Sighting ${sIdx+1}`}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.target.style.display = 'none';
+                                  e.target.parentElement.innerHTML = '<span class="text-[9px] text-[#666]">FRAME</span>';
+                                }}
+                              />
+                            </div>
+                            <div>
+                              <div className="font-bold text-[#e5e2e1]">Sighting Occurrence #{sIdx + 1}</div>
+                              <div className="text-[10px] text-[#858585]">Confidence: {Math.round((s.confidence || 0.90) * 100)}%</div>
+                            </div>
                           </div>
-                          <div>
-                            <div className="font-bold text-[#e5e2e1]">Sighting Occurrence #{sIdx + 1}</div>
-                            <div className="text-[10px] text-[#858585]">Confidence: {Math.round(s.confidence * 100)}%</div>
+                          <div className="text-right">
+                            <span className="px-2 py-0.5 rounded bg-[#1c1c1c] text-yellow-400 font-bold text-[11px] border border-[#333]">
+                              {s.formatted_time || `${Math.round(s.timestamp_sec || 0)}s`}
+                            </span>
                           </div>
                         </div>
-                        <div className="text-right">
-                          <span className="px-2 py-0.5 rounded bg-[#1c1c1c] text-yellow-400 font-bold text-[11px] border border-[#333]">
-                            {s.formatted_time}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>

@@ -5,14 +5,14 @@ import cv2
 import numpy as np
 from contextlib import asynccontextmanager
 from typing import Optional, List
-from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from sqlalchemy.orm import Session
 
-from .database import get_db, BASE_DIR
-from .models import Camera, Event
+from .database import get_db, BASE_DIR, IS_POSTGRES, SessionLocal
+from .models import Camera, Event, PersonVideoTrack, PersonVideoSighting, VideoEvidence
 from .schemas import (
     CameraCreate, CameraResponse, EventResponse, 
     StartDetectionRequest, DetectionStatusResponse, VehicleFlagRequest
@@ -253,19 +253,21 @@ import cv2
 @app.get("/api/person/videos")
 def get_person_videos_endpoint(db: Session = Depends(get_db)):
     """
-    Returns list of indexed CCTV/Video Evidence sources with tracks and sighting counts.
+    Returns list of indexed CCTV/Video Evidence sources with real-time status and track counts.
     """
     videos = db.query(VideoEvidence).order_by(VideoEvidence.created_at.desc()).all()
     return [
         {
             "source_id": v.source_id,
             "source_name": v.source_name,
+            "camera_id": v.camera_id or "CAM-01",
             "filename": v.filename,
             "location": v.location or "Video source location unavailable",
             "duration_sec": round(v.duration_sec, 2),
             "fps": round(v.fps, 1),
             "total_frames": v.total_frames,
-            "status": v.status,
+            "status": v.status,  # queued, processing, ready, failed
+            "error_message": v.error_message,
             "track_count": v.track_count,
             "sighting_count": v.sighting_count,
             "created_at": str(v.created_at)
@@ -275,20 +277,21 @@ def get_person_videos_endpoint(db: Session = Depends(get_db)):
 
 @app.post("/api/person/videos/upload")
 async def upload_person_video_endpoint(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     source_name: Optional[str] = Query(None),
+    camera_id: Optional[str] = Query(None),
     location: Optional[str] = Query(None),
     db: Session = Depends(get_db)
 ):
     """
-    Uploads and processes CCTV / Video Evidence:
-    Extracts sampled frames, detects pedestrians, tracks people across time,
-    saves high-resolution crops, and indexes appearance embeddings.
+    Asynchronously uploads and processes CCTV / Video Evidence:
+    Extracts frames at configured FPS, detects people via YOLO11, tracks via ByteTrack,
+    filters crops by quality, generates TransReID embeddings, and indexes into vector store.
     """
     if not file.filename.lower().endswith(('.mp4', '.avi', '.mov', '.mkv', '.webm')):
         raise HTTPException(status_code=400, detail="Unsupported video format. Please upload MP4, AVI, MOV, MKV, or WEBM.")
 
-    # Generate distinct source ID
     count = db.query(VideoEvidence).count()
     source_id = f"VIDEO-{(count + 1):02d}"
 
@@ -301,20 +304,62 @@ async def upload_person_video_endpoint(
     with open(saved_path, "wb") as f:
         f.write(contents)
 
-    try:
-        res = video_person_engine.process_video_evidence(
-            video_path=saved_path,
-            source_id=source_id,
-            source_name=source_name or f"{source_id}: {file.filename}",
-            location=location or "Surveillance Sector"
-        )
+    source_hash = video_person_engine.compute_file_sha256(saved_path)
+
+    # Check for existing video with same hash (Idempotency)
+    existing_video = db.query(VideoEvidence).filter(VideoEvidence.source_hash == source_hash).first()
+    if existing_video and existing_video.status == "ready":
         return {
-            "status": "success",
-            "message": f"Successfully processed video evidence [{source_id}].",
-            "video": res
+            "status": "ready",
+            "message": f"Identical video evidence already indexed as [{existing_video.source_id}].",
+            "video": {
+                "source_id": existing_video.source_id,
+                "source_name": existing_video.source_name,
+                "camera_id": existing_video.camera_id,
+                "filename": existing_video.filename,
+                "duration_sec": round(existing_video.duration_sec, 2),
+                "track_count": existing_video.track_count,
+                "sighting_count": existing_video.sighting_count,
+                "status": existing_video.status
+            }
         }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to process video evidence: {str(e)}")
+
+    # Register in 'queued' status
+    ve = VideoEvidence(
+        source_id=source_id,
+        source_hash=source_hash,
+        filename=file.filename,
+        file_path=saved_path,
+        source_name=source_name or f"{source_id}: {file.filename}",
+        camera_id=camera_id or "CAM-01",
+        location=location or "Surveillance Sector",
+        status="queued"
+    )
+    db.add(ve)
+    db.commit()
+    db.refresh(ve)
+
+    # Launch processing in background task
+    background_tasks.add_task(
+        video_person_engine.process_video_evidence,
+        video_path=saved_path,
+        source_id=source_id,
+        source_name=source_name or f"{source_id}: {file.filename}",
+        camera_id=camera_id or "CAM-01",
+        location=location or "Surveillance Sector"
+    )
+
+    return {
+        "status": "queued",
+        "message": f"Video evidence [{source_id}] accepted and queued for background indexing.",
+        "video": {
+            "source_id": source_id,
+            "source_name": ve.source_name,
+            "camera_id": ve.camera_id,
+            "filename": ve.filename,
+            "status": "queued"
+        }
+    }
 
 @app.delete("/api/person/videos/{source_id}")
 def delete_person_video_endpoint(source_id: str, db: Session = Depends(get_db)):
@@ -354,40 +399,50 @@ def get_person_evidence_sighting_crop(source_id: str, track_id: str, filename: s
 async def search_person(
     file: UploadFile = File(...),
     min_similarity: float = Query(0.50, ge=0.0, le=1.0),
+    camera_id: Optional[str] = Query(None),
     location: Optional[str] = Query(None),
     time_window: Optional[str] = Query(None),
-    limit: int = Query(5)
+    limit: int = Query(10, ge=1, le=50)
 ):
     """
     Missing Person Video Re-Identification API:
-    Accepts uploaded reference query photo, extracts appearance embedding,
-    and returns ranked Top-K candidate person sightings from processed CCTV/video evidence.
+    Accepts reference photo, validates single-person detection, evaluates crop quality,
+    extracts TransReID embedding, and returns ranked visual similarity candidates from CCTV gallery.
     """
     contents = await file.read()
     nparr = np.frombuffer(contents, np.uint8)
     query_img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
 
     if query_img is None:
-        raise HTTPException(status_code=400, detail="Invalid reference image uploaded.")
+        raise HTTPException(status_code=400, detail="Invalid image file format. Could not decode image.")
 
-    # Search against processed video evidence with strict top-K limit (max 5)
-    effective_limit = min(max(1, limit), 5)
+    cam_filter = camera_id or location
     search_result = video_person_engine.search_person_gallery(
         query_img=query_img,
         min_similarity=min_similarity,
-        source_id=location,
-        time_window=time_window,
-        limit=effective_limit
+        camera_id=cam_filter,
+        limit=limit
     )
 
+    if search_result.get("status") == "error":
+        return {
+            "status": "error",
+            "error_code": search_result.get("error_code"),
+            "message": search_result.get("message"),
+            "query_filename": file.filename,
+            "matches": []
+        }
+
     return {
+        "status": "success",
         "query_filename": file.filename,
-        "source_filter": location or "All Video Sources",
+        "query": search_result.get("query", {}),
+        "source_filter": cam_filter or "All Cameras",
         "min_similarity": min_similarity,
-        "limit": search_result["limit"],
-        "total_candidates": search_result["total_candidates"],
-        "returned_candidates": search_result["returned_candidates"],
-        "matches": search_result["matches"]
+        "limit": search_result.get("limit", limit),
+        "total_candidates": search_result.get("total_candidates", 0),
+        "returned_candidates": search_result.get("returned_candidates", 0),
+        "matches": search_result.get("matches", [])
     }
 
 
@@ -635,26 +690,45 @@ def stop_detection(camera_id: int, db: Session = Depends(get_db)):
 # ================= SYSTEM STATUS =================
 
 @app.get("/api/status")
-def system_status():
+def system_status(db: Session = Depends(get_db)):
     """Retrieve runtime GPU, active cameras, and model telemetry."""
-    cuda_available = False
+    device_name = "cpu"
     gpu_name = "CPU (Fallback)"
     try:
         import torch
-        cuda_available = torch.cuda.is_available()
-        if cuda_available:
+        if torch.cuda.is_available():
+            device_name = "cuda"
             gpu_name = torch.cuda.get_device_name(0)
+        elif torch.backends.mps.is_available():
+            device_name = "mps"
+            gpu_name = "Apple Silicon GPU (MPS)"
     except Exception:
         pass
 
     active_workers = len(stream_manager.workers) if stream_manager else 0
     active_models = list(detection_engine.models.keys()) if detection_engine else []
 
+    # Get Person Re-ID Runtime state
+    reid_backend = video_person_engine.reid_backend
+    indexed_tracks_count = db.query(PersonVideoTrack).count()
+    indexed_videos_count = db.query(VideoEvidence).count()
+
     return {
         "status": "online",
-        "device": "cuda" if cuda_available else "cpu",
+        "device": device_name,
         "gpu_name": gpu_name,
         "active_models": active_models,
         "active_camera_workers": active_workers,
+        "person_reid": {
+            "enabled": True,
+            "model": reid_backend.model_name,
+            "model_version": reid_backend.model_version,
+            "checkpoint_loaded": reid_backend.model is not None,
+            "embedding_dimension": reid_backend.embedding_dim,
+            "device": reid_backend.device,
+            "vector_database": "postgresql_pgvector" if IS_POSTGRES else "sqlite_numpy_fallback",
+            "indexed_videos": indexed_videos_count,
+            "indexed_tracks": indexed_tracks_count
+        },
         "phase_2_modules": ["Person Finder (ReID)", "Vehicle Finder (Plate & Appearance)", "Multi-City GIS Grid"]
     }

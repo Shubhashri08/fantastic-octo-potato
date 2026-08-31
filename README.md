@@ -1,219 +1,149 @@
-# VIGRAH AI — Visual Intelligence & Geospatial Response Hub
-### Unified Multi-Model CCTV Intelligence, Forensic Re-Identification & Tactical Response Platform
+# VIGRAH AI (Visual Intelligence & Geospatial Response Hub)
+### Real-Time Video Analytics, Multi-Model Incident Detection & Forensic Person Re-ID Platform
 
-VIGRAH AI is an open-source, local intelligence system designed for municipal security, CCTV forensic investigation, and smart-city situational response. The platform ingests multi-camera live feeds (Webcam, RTSP, Video Footage), runs multi-model YOLO detection with temporal confirmation filters, performs vector appearance Re-Identification for Missing Persons and Vehicles, reconstructs incident progression vectors, and enables rapid tactical dispatch across an interactive geospatial interface.
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.109+-009688.svg?style=flat&logo=FastAPI&logoColor=white)](https://fastapi.tiangolo.com)
+[![PyTorch](https://img.shields.io/badge/PyTorch-2.2+-EE4C2C.svg?style=flat&logo=PyTorch&logoColor=white)](https://pytorch.org)
+[![React](https://img.shields.io/badge/React-18.2+-61DAFB.svg?style=flat&logo=React&logoColor=black)](https://reactjs.org)
+[![TailwindCSS](https://img.shields.io/badge/TailwindCSS-3.4+-38B2AC.svg?style=flat&logo=tailwind-css&logoColor=white)](https://tailwindcss.com)
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 
----
-
-## 🏛️ System Architecture — 4 Operational Layers
-
-```
-                                  VIGRAH AI PLATFORM
- ┌──────────────────────────────────────────────────────────────────────────────────┐
- │  1. SENSE (Surveillance)                                                         │
- │     • Multi-camera stream ingestion (Webcam, RTSP, Video feeds)                  │
- │     • Multi-model YOLO inference (Fire/Smoke, Accidents, Fighting, Pedestrians) │
- │     • Temporal confirmation filters & auto DVR incident recording (10s clips)    │
- ├──────────────────────────────────────────────────────────────────────────────────┤
- │  2. UNDERSTAND (GIS)                                                             │
- │     • Geospatial situational map (Leaflet dark topology)                         │
- │     • Distributed camera node telemetry & active threat markers                  │
- ├──────────────────────────────────────────────────────────────────────────────────┤
- │  3. IDENTIFY (Forensics & Re-ID)                                                 │
- │     • Missing Person Video Re-ID: Sampled frame tracking & 128-D vector search   │
- │     • Vehicle Finder: License plate lookup, visual attribute search & flagging   │
- │     • Incident Audit Log: Verified evidence lifecycle and telemetry records      │
- ├──────────────────────────────────────────────────────────────────────────────────┤
- │  4. RESPOND (Tactical Action)                                                    │
- │     • Event Reconstruction Engine: Multi-modal escape & spread vector prediction │
- │     • Tactical Dispatch: Perimeter lockdowns, emergency alerts & containment     │
- └──────────────────────────────────────────────────────────────────────────────────┘
-```
+VIGRAH AI is an open-source, local visual intelligence platform designed for municipal and smart-city surveillance. It processes multi-camera feeds (Webcam, RTSP, and Video Files), performs real-time multi-model YOLO inference for incident detection (Fire/Smoke, Accidents, Violence/Fighting, Vehicles, Pedestrians), applies temporal confirmation filters to eliminate false alarms, provides forensic Person Re-Identification (Re-ID) tracking, and streams live MJPEG video feeds to a geospatial React dashboard.
 
 ---
 
-## ⚡ Key Highlights & Core Capabilities
+## ⚡ Key Highlights
 
-- **Missing Person Video Re-ID**:
-  - Ingests recorded CCTV video evidence files (`.mp4`, `.avi`, `.mov`, `.mkv`, `.webm`).
-  - Samples frames at 2–3 FPS, tracks individuals across time clusters (`TRK-001`, `TRK-002`), and saves verified person crops.
-  - Generates 128-D normalized hybrid appearance vectors (HSV spatial histogram + Sobel texture gradients).
-  - Performs cosine similarity ranking with strict Top-5 best matches, minimum similarity threshold slider, and source feed filtering.
-  - Side-by-side forensic profile comparison (Query Photo vs Matched CCTV Video Crop) with occurrence timeline.
-
-- **Vehicle Identification & Re-ID**:
-  - License plate query search & visual attribute filtering (color, make, type).
-  - Real-time vehicle stolen/flagged status toggle with audit logging.
-  - Last spotted location coordinates and sighting timestamps.
-
-- **Event Reconstruction & Path Prediction Engine**:
-  - Multi-modal analysis calibrated by threat class:
-    - **Vehicle Incidents** (Hit & Run, Stolen Car): High-speed arterial highways, ring roads, traffic bottlenecks.
-    - **Pedestrian Incidents** (Fighting, Robbery, Panic): Subway exits, pedestrian corridors, metro transit gates.
-    - **Physical Hazards** (Fire, Smoke, Gas): Thermal spread vectors, evacuation containment perimeters.
-  - Calculates escape likelihood percentages, estimated transit times, and intercept camera nodes.
-
-- **Hardware Optimized**:
-  - Tuned for low-latency edge inference with FP16 half-precision and automatic CPU fallback.
-  - Zero paid dependencies: PyTorch, Ultralytics YOLO, FastAPI, SQLite, React, Vite, and Leaflet.
+- **Multi-Model Incident Detection**: Real-time YOLO detection tuned for high accuracy across traffic accidents, fires, violent altercations, and density anomalies.
+- **Forensic Person Re-Identification (Re-ID)**: Multi-camera person tracking using state-of-the-art **TransReID (ViT-Base)** and **OSNet** embeddings, integrated with BYTETracker.
+- **Hardware Optimized**: Tuned for CUDA (NVIDIA GPU), Apple Silicon (MPS), and automatic CPU fallback with FP16 precision.
+- **Zero Paid Services**: 100% free open-source stack using PyTorch, Ultralytics YOLO, FastAPI, SQLite / PostgreSQL + pgvector, and Leaflet.
+- **Temporal Confirmation**: Incidents are confirmed only when detected in $\ge 3$ consecutive sampled frames with automated snapshot storage.
+- **Geospatial Intelligence**: Interactive dark-themed Leaflet map showing CCTV camera nodes, GPS coordinates, and real-time alert telemetry.
 
 ---
 
-## 📂 Repository Structure
+## 📂 Project Structure
 
 ```
 fantastic-octo-potato/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                  # FastAPI server & REST/Evidence endpoints
-│   │   ├── database.py              # SQLite engine & session management
-│   │   ├── models.py                # Database models (Cameras, Events, Videos, Tracks, Sightings)
-│   │   ├── schemas.py               # Pydantic request/response schemas
-│   │   ├── detection.py             # YOLO multi-model detector & temporal tracker
-│   │   ├── stream_manager.py        # Multi-camera worker pool & MJPEG streaming
-│   │   ├── video_person_engine.py   # Video sampling, person tracking, 128-D Re-ID & vector search
-│   │   ├── reconstruction_engine.py # Multi-modal path prediction & escape vector engine
-│   │   ├── vehicle_service.py       # Vehicle metadata, plate search & flagging
-│   │   └── seed_data.py             # Database seeder & default camera network
-│   ├── evidence/                    # Stored person crop evidence images
-│   ├── sample_media/                # CCTV demo videos (CSMT, MG Road, Marine Drive, etc.)
-│   ├── snapshots/                   # Automated incident snapshots
-│   ├── test_person_finder_video_reid.py # Automated test suite for Person Re-ID
-│   ├── test_distributed_reconstruction_suite.py # Automated test suite for Path Prediction
+│   │   ├── main.py                  # FastAPI application & REST/streaming endpoints
+│   │   ├── database.py              # PostgreSQL (pgvector) / SQLite engine configuration
+│   │   ├── models.py                # Camera, Event, and Person Re-ID database models
+│   │   ├── schemas.py               # Pydantic validation schemas
+│   │   ├── detection.py             # Multi-model YOLO detection core & temporal tracker
+│   │   ├── stream_manager.py        # Multi-camera worker pool & MJPEG generator
+│   │   ├── video_person_engine.py   # Person Re-ID indexing and search engine
+│   │   ├── person_reid/             # TransReID (ViT-Base) & OSNet Re-ID backends
+│   │   └── tracking/                # BYTETracker and crop quality filtering
+│   ├── main.py                      # Uvicorn server entrypoint
+│   ├── sample_media/                # Demo and sample CCTV video feeds
+│   ├── weights/                     # Pretrained weights directory (.gitkeep)
 │   └── requirements.txt             # Python dependencies
 ├── frontend/
 │   ├── src/
 │   │   ├── components/
-│   │   │   ├── Header.jsx           # Telemetry header & status bar
-│   │   │   ├── Navigation.jsx       # 4-layer navigation menu
-│   │   │   ├── SurveillanceConsole.jsx # Layer 1: Live surveillance feeds & threat alerts
-│   │   │   ├── GisConsole.jsx       # Layer 2: Geospatial map & camera nodes
-│   │   │   ├── IdentifyConsole.jsx  # Layer 3: Person Finder, Vehicle Finder & Audit Log
-│   │   │   ├── RespondConsole.jsx   # Layer 4: Event Reconstruction & Tactical Dispatch
-│   │   │   └── ReconstructionMap.jsx# GIS path prediction visualization
-│   │   ├── api/
-│   │   │   ├── client.js            # Base HTTP client with timeout management
-│   │   │   ├── cameras.js           # Camera API client
-│   │   │   ├── events.js            # Events & incidents API client
-│   │   │   ├── persons.js           # Video evidence & Person Re-ID client
-│   │   │   ├── vehicles.js          # Vehicle search & flagging client
-│   │   │   └── reconstruction.js    # Event Reconstruction client
-│   │   ├── App.jsx                  # Main application router & state
-│   │   └── index.css                # Dark mode tactical CSS design system
+│   │   │   ├── Header.jsx           # Telemetry bar & status indicators
+│   │   │   ├── LiveStreamGrid.jsx   # MJPEG live video feeds with source switching
+│   │   │   ├── CameraMap.jsx        # Leaflet interactive map with camera markers
+│   │   │   ├── EventTable.jsx       # Real-time incident log table with filters
+│   │   │   ├── IdentifyConsole.jsx  # Forensic Person Re-ID search console
+│   │   │   └── SnapshotModal.jsx    # Verification lightbox for captured incidents
+│   │   ├── App.jsx                  # Main dashboard composition
+│   │   ├── index.css                # Glassmorphism dark mode styling
+│   │   └── main.jsx
 │   ├── package.json
-│   └── vite.config.js               # Proxy configuration (/api, /evidence, /stream)
-├── .env.example             # Example environment variables template
-├── .gitignore
+│   └── vite.config.js               # Proxy configuration to backend
+├── docs/                            # Architectural specifications and benchmarks
+├── .env.example                     # Template environment configuration
 └── README.md
 ```
 
 ---
 
-## ⚙️ Environment Configuration
-
-Copy the `.env.example` template to `.env` in the root directory:
-
-```bash
-cp .env.example .env
-```
-
-### Environment Variables Reference
-
-| Variable | Default | Description |
-|---|---|---|
-| `DATABASE_URL` | `sqlite:///./vigrah.db` | SQLAlchemy database URL (SQLite or PostgreSQL / Neon DB) |
-| `MEDIA_STORAGE_DIR` | `./recordings` | Directory path for auto-saved 10s incident MP4 clips |
-| `SNAPSHOTS_STORAGE_DIR` | `./snapshots` | Directory path for verified incident JPEG snapshots |
-| `EVIDENCE_STORAGE_DIR` | `./evidence` | Directory path for extracted Person Re-ID crops |
-| `HOST` | `127.0.0.1` | Backend server host interface |
-| `PORT` | `8000` | Backend server port |
-| `CONF_THRESHOLD` | `0.35` | Minimum YOLO detection confidence threshold |
-| `TEMPORAL_PERSISTENCE_FRAMES` | `3` | Number of consecutive frames needed to confirm an incident |
-| `INCIDENT_COOLDOWN_SECONDS` | `10` | Cooldown period between duplicate alert triggers |
-
----
-
 ## 🚀 Quick Start Guide
 
-### Prerequisites
-- **Python**: 3.10+
-- **Node.js**: 18+ and `npm`
+### 1. Prerequisites
+- **Python 3.10+**
+- **Node.js 18+** & **npm**
 
----
-
-### 1. Start Backend Server
-
-Open a terminal in `backend/`:
+### 2. Backend Setup
 
 ```bash
+# Navigate to backend directory
 cd backend
 
-# (Optional) Create and activate virtual environment
-python3 -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Create and activate virtual environment (optional but recommended)
+python3 -m venv .venv
+source .venv/bin/activate   # On Windows: .venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
 
-# Start backend server
-uvicorn app.main:app --reload --host 127.0.0.1 --port 8000
+# (Optional) Copy configuration file
+cp ../.env.example .env
+
+# Start the FastAPI server
+uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
-Backend runs at `http://127.0.0.1:8000`. On startup, it automatically creates the database schema, seeds distributed camera nodes, and indexes sample video evidence.
+The backend API and Swagger documentation will be available at `http://localhost:8000/docs`.
 
----
+### 3. Frontend Setup
 
-### 2. Start Frontend Server
-
-Open a second terminal in `frontend/`:
+In a new terminal window:
 
 ```bash
+# Navigate to frontend directory
 cd frontend
 
 # Install dependencies
 npm install
 
-# Start Vite dev server
+# Start the Vite development server
 npm run dev
 ```
 Open `http://localhost:5173` in your browser.
 
 ---
 
-## 🧪 Running Automated Test Suites
+## ⚙️ Configuration (.env)
 
-The backend includes test suites verifying data integrity, vector search, and path prediction:
-
-```bash
-# 1. Person Finder & Video Evidence Re-ID Test Suite
-python3 backend/test_person_finder_video_reid.py
-
-# 2. Distributed Event Reconstruction & Path Prediction Test Suite
-python3 backend/test_distributed_reconstruction_suite.py
-```
+| Variable | Default | Description |
+|---|---|---|
+| `DATABASE_URL` | `sqlite:///./vigrah.db` | Database connection (SQLite or PostgreSQL `postgresql://...`) |
+| `PERSON_REID_MODEL` | `transreid` | Person Re-ID backend (`transreid` or `osnet`) |
+| `PERSON_REID_CHECKPOINT` | `None` | Optional path to custom Re-ID `.pth` checkpoint |
+| `MEDIA_STORAGE_DIR` | `./recordings` | Directory for incident video recordings |
+| `SNAPSHOTS_STORAGE_DIR` | `./snapshots` | Directory for saved incident snapshots |
+| `CONF_THRESHOLD` | `0.35` | Detection confidence threshold (0.0 – 1.0) |
+| `TEMPORAL_PERSISTENCE_FRAMES`| `3` | Consecutive frames required to confirm an incident |
 
 ---
 
-## 🔌 API Endpoints Summary
+## 🔌 API Endpoints Reference
 
+### Surveillance & Incidents
 | Method | Endpoint | Description |
 |---|---|---|
 | `GET` | `/api/cameras` | List all registered camera nodes |
+| `POST` | `/api/cameras` | Register a new camera node |
+| `PUT` | `/api/cameras/{id}` | Update camera source or GPS coordinates |
 | `GET` | `/api/events` | List recorded incidents (filter by type/severity/camera) |
-| `GET` | `/stream/{camera_id}` | Live low-latency MJPEG video stream |
-| `POST` | `/api/start_detection` | Start/restart stream worker and detection engine |
-| `GET` | `/api/status` | System status, active workers, and engine telemetry |
-| `GET` | `/api/person/videos` | List indexed video evidence sources with track statistics |
-| `POST` | `/api/person/videos/upload` | Upload and process CCTV video footage |
-| `DELETE` | `/api/person/videos/{source_id}` | Delete a video evidence source and associated tracks |
-| `POST` | `/api/person/search` | Missing Person Re-ID search by query image (Top-5 ranked) |
-| `GET` | `/api/person/evidence/{source_id}/{track_id}` | Direct endpoint serving verified representative crop image |
-| `GET` | `/api/person/evidence/{source_id}/{track_id}/{filename}` | Direct endpoint serving specific sighting crop image |
-| `GET` | `/api/vehicles/search` | Search vehicles by plate number or visual attributes |
-| `POST` | `/api/vehicles/flag` | Flag or unflag a vehicle with reason and priority |
-| `POST` | `/api/reconstruction/analyze` | Multi-modal path prediction and escape vector analysis |
+| `GET` | `/stream/{camera_id}` | Live MJPEG video stream |
+| `POST` | `/api/start_detection` | Start detection worker for a camera |
+| `POST` | `/api/stop_detection` | Pause detection worker for a camera |
+| `GET` | `/api/status` | Hardware/GPU telemetry and active worker status |
+
+### Person Re-Identification (Re-ID)
+| Method | Endpoint | Description |
+|---|---|---|
+| `GET` | `/api/person/videos` | List indexed video evidence feeds |
+| `POST` | `/api/person/index_video` | Process & index a CCTV video with Person Re-ID |
+| `POST` | `/api/person/search` | Search gallery by reference photo/crop |
+| `GET` | `/api/person/track/{track_id}` | Get detailed trajectory and sightings for a track |
 
 ---
 
-## 🛡️ License
-
-This project is open-source under the MIT License.
+## 📄 License
+This project is open-source under the Apache 2.0 License.
