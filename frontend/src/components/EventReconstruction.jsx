@@ -63,9 +63,13 @@ export default function EventReconstruction({ events = [], cameras = [], onNavig
     }
   }, [filteredEvents, selectedEventId]);
 
-  // Initialize Leaflet Map Instance Once
+  // Initialize Leaflet Map Instance Once with robust cleanup
   useEffect(() => {
     if (!mapContainerRef.current) return;
+
+    if (mapContainerRef.current._leaflet_id && !mapInstanceRef.current) {
+      mapContainerRef.current._leaflet_id = null;
+    }
 
     if (!mapInstanceRef.current) {
       const map = L.map(mapContainerRef.current, {
@@ -77,21 +81,46 @@ export default function EventReconstruction({ events = [], cameras = [], onNavig
 
       L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-      // Clean Voyager Dark Basemap Tiles
-      L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
-        attribution: '&copy; CARTO &copy; OpenStreetMap',
+      // CARTO Dark Cyber Basemap (with API key support)
+      const cartoApiKey = (import.meta.env.VITE_CARTO_API_KEY || import.meta.env.VITE_MAP_API_KEY || 'cb1_2pk7_1_90609325753bc4f1255b1901').trim();
+      const cartoUrl = cartoApiKey 
+        ? `https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?api_key=${cartoApiKey}`
+        : 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png';
+
+      const tileLayer = L.tileLayer(cartoUrl, {
+        attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 19,
         subdomains: 'abcd'
-      }).addTo(map);
+      });
+
+
+      tileLayer.on('tileerror', (err, tile) => {
+        if (tile) tile.src = 'https://tile.openstreetmap.org/0/0/0.png';
+      });
+
+      tileLayer.addTo(map);
+
+
 
       const markerLayer = L.layerGroup().addTo(map);
       layerGroupRef.current = markerLayer;
       mapInstanceRef.current = map;
 
       setTimeout(() => {
-        map.invalidateSize();
+        if (mapInstanceRef.current) mapInstanceRef.current.invalidateSize();
       }, 300);
     }
+
+    return () => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.remove();
+        mapInstanceRef.current = null;
+        layerGroupRef.current = null;
+      }
+      if (mapContainerRef.current) {
+        mapContainerRef.current._leaflet_id = null;
+      }
+    };
   }, []);
 
   // Execute Event Reconstruction Analysis
@@ -139,7 +168,7 @@ export default function EventReconstruction({ events = [], cameras = [], onNavig
     const bounds = L.latLngBounds();
 
     // 1. EVENT ORIGIN MARKER (Pulsing Highlighted Red Pin)
-    if (event && event.lat && event.lon) {
+    if (event && typeof event.lat === 'number' && typeof event.lon === 'number') {
       const eventLatLng = [event.lat, event.lon];
       bounds.extend(eventLatLng);
 
@@ -152,16 +181,20 @@ export default function EventReconstruction({ events = [], cameras = [], onNavig
         fillOpacity: 0.95
       });
 
+      const latStr = (event.lat ?? 0).toFixed(4);
+      const lonStr = (event.lon ?? 0).toFixed(4);
+
       eventMarker.bindPopup(`
         <div style="font-family: monospace; font-size: 11px; padding: 6px; min-width: 190px;">
           <div style="font-weight: 900; color: #EF4444; font-size: 12px;">🔴 INCIDENT GROUND ZERO</div>
-          <div style="font-weight: bold; color: #0f172a; margin-top: 3px;">${event.event_type} (#EVT-${event.id})</div>
-          <div style="color: #64748b; font-size: 10px; margin-top: 2px;">${event.camera_name}</div>
-          <div style="color: #0284c7; font-weight: bold; margin-top: 4px;">Lat: ${event.lat.toFixed(4)} · Lon: ${event.lon.toFixed(4)}</div>
-          <div style="color: #475569; font-size: 10px;">Logged: ${event.timestamp}</div>
+          <div style="font-weight: bold; color: #0f172a; margin-top: 3px;">${event.event_type || 'Incident'} (#EVT-${event.id || '0'})</div>
+          <div style="color: #64748b; font-size: 10px; margin-top: 2px;">${event.camera_name || 'Surveillance Node'}</div>
+          <div style="color: #0284c7; font-weight: bold; margin-top: 4px;">Lat: ${latStr} · Lon: ${lonStr}</div>
+          <div style="color: #475569; font-size: 10px;">Logged: ${event.timestamp || 'Recent'}</div>
         </div>
       `);
       eventMarker.addTo(layerGroup);
+
 
       // Add Exclusion Radius Circle for Fire/Smoke
       if (mode === 'incident_spread') {

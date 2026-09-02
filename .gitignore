@@ -18,6 +18,8 @@ Icon?
 *~
 Thumbs.db
 ehthumbs.db
+*.ses
+/yolo11n.pt
 
 # Python & Build Artifacts
 __pycache__/
@@ -72,20 +74,39 @@ vigrah.db
 backend/vigrah.db
 backend/reid_gallery_cache.json
 
-# Model Weights & Checkpoints (Heavy Binaries)
-*.pth
-*.pt
-*.onnx
+# Model Weights & Checkpoints
+# Exclude raw generic binaries and heavy files (>100MB)
 *.bin
 *.weights
 *.engine
-backend/weights/*.pth
-backend/weights/*.pt
-backend/weights/*.onnx
-backend/yolo11n.pt
+backend/weights/transreid_market1501.pth
+backend/weights/*.bin
+
+# Track essential detection & classification models (<15MB each, GitHub compatible)
+!backend/yolo11n.pt
+!backend/weights/best.onnx
+!backend/weights/osnet_x1_0_market1501.pth
+!backend/weights/test_osnet.pth
 !backend/weights/.gitkeep
 
-# Runtime Media, Snapshots, Uploads & Evidence
+# Video Storage, Datasets & Media Footages
+!backend/samples/
+!backend/samples/*
+!backend/sample_media/
+!backend/sample_media/*
+!backend/video_storage/
+!backend/video_storage/violent/
+!backend/video_storage/violent/*
+!backend/video_storage/non_violent/
+!backend/video_storage/non_violent/*
+!backend/video_storage/reports/
+!backend/video_storage/reports/*
+!backend/video_storage/reports/snapshots/*
+!backend/video_storage/dataset_index.json
+backend/video_storage/unclassified/*
+!backend/video_storage/unclassified/.gitkeep
+
+# Runtime Media, Snapshots & Uploads
 backend/snapshots/incident_*.jpg
 backend/snapshots/*.jpg
 backend/snapshots/*.png
@@ -98,6 +119,9 @@ backend/evidence/*
 !backend/evidence/.gitkeep
 .tempmediaStorage/
 *.log
+Ultralytics/
+.cache/
+scratch/
 
 # Node.js & Frontend Artifacts
 node_modules/

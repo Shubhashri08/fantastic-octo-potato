@@ -1516,8 +1516,9 @@ export default function IdentifyConsole({
                           <div>
                             <div className="font-bold text-[#e5e2e1]">{s.location}</div>
                             <div className="text-[10px] text-[#858585]">
-                              {s.camera_id} • Velocity: {s.speed_kmh} km/h • GPS: {s.latitude?.toFixed(4)}, {s.longitude?.toFixed(4)}
+                              {s.camera_id} • Velocity: {s.speed_kmh || 0} km/h • GPS: {typeof s.latitude === 'number' ? s.latitude.toFixed(4) : (s.latitude || '0.0000')}, {typeof s.longitude === 'number' ? s.longitude.toFixed(4) : (s.longitude || '0.0000')}
                             </div>
+
                           </div>
                           <div className="text-right text-[#f5dfc0] font-bold">{s.timestamp}</div>
                         </div>

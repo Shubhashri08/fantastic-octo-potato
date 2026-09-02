@@ -1,0 +1,44 @@
+{
+  "video_id": "vid_1788374982_fight_2",
+  "filename": "fight_2.mp4",
+  "category": "violent",
+  "verdict": "VIOLENT_FIGHTING",
+  "is_violent": true,
+  "has_abnormalities": true,
+  "abnormality_summary": "Abnormal / Threat Behavior Detected: Hostile physical combat detected (punches, wrestling, brawl motion).",
+  "abnormality_details": [
+    "Hostile physical combat detected (punches, wrestling, brawl motion)."
+  ],
+  "metrics": {
+    "violence_score": 0.847,
+    "walking_flow_score": 0.167,
+    "max_threat_confidence": 0.847,
+    "fighting_frames": 12,
+    "walking_frames": 2,
+    "total_frames": 150,
+    "inspected_frames": 12,
+    "duration_sec": 5.0,
+    "fps": 30.0,
+    "resolution": "640x360",
+    "avg_pedestrians": 0.2,
+    "max_pedestrians": 2
+  },
+  "stored_location": "video_storage/violent/fight_2.mp4",
+  "evidence_snapshots": [
+    {
+      "frame": 0,
+      "timestamp": 0.0,
+      "path": "video_storage/reports/snapshots/fight_2_frame0.jpg",
+      "has_violence": true,
+      "persons": 2
+    },
+    {
+      "frame": 149,
+      "timestamp": 4.97,
+      "path": "video_storage/reports/snapshots/fight_2_frame149.jpg",
+      "has_violence": true,
+      "persons": 0
+    }
+  ],
+  "analyzed_at": "2026-09-03 00:19:42"
+}

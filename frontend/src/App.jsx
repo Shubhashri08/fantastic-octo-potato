@@ -7,6 +7,7 @@ import UnderstandConsole from './components/UnderstandConsole';
 import IdentifyConsole from './components/IdentifyConsole';
 import RespondConsole from './components/RespondConsole';
 import SnapshotModal from './components/SnapshotModal';
+import ErrorBoundary from './components/ErrorBoundary';
 import { getCameras, startDetection, stopDetection } from './api/cameras';
 import { getEvents } from './api/events';
 import { getSystemStatus } from './api/status';
@@ -158,13 +159,15 @@ export default function App() {
                 exit="exit"
                 className="h-full w-full"
               >
-                <LiveStreamGrid
-                  cameras={cameras}
-                  selectedCameraId={selectedCameraId}
-                  onSelectCamera={setSelectedCameraId}
-                  onStartDetection={handleStartDetection}
-                  onStopDetection={handleStopDetection}
-                />
+                <ErrorBoundary name="Sense Layer">
+                  <LiveStreamGrid
+                    cameras={cameras}
+                    selectedCameraId={selectedCameraId}
+                    onSelectCamera={setSelectedCameraId}
+                    onStartDetection={handleStartDetection}
+                    onStopDetection={handleStopDetection}
+                  />
+                </ErrorBoundary>
               </motion.div>
             )}
 
@@ -177,14 +180,16 @@ export default function App() {
                 exit="exit"
                 className="h-full w-full"
               >
-                <UnderstandConsole
-                  cameras={cameras}
-                  events={events}
-                  selectedCameraId={selectedCameraId}
-                  onSelectCamera={setSelectedCameraId}
-                  onNavigateToLive={handleNavigateToLive}
-                  initialMode={understandSubTab}
-                />
+                <ErrorBoundary name="Understand Layer">
+                  <UnderstandConsole
+                    cameras={cameras}
+                    events={events}
+                    selectedCameraId={selectedCameraId}
+                    onSelectCamera={setSelectedCameraId}
+                    onNavigateToLive={handleNavigateToLive}
+                    initialMode={understandSubTab}
+                  />
+                </ErrorBoundary>
               </motion.div>
             )}
 
@@ -197,15 +202,17 @@ export default function App() {
                 exit="exit"
                 className="h-full w-full"
               >
-                <IdentifyConsole
-                  events={events}
-                  selectedCameraId={selectedCameraId}
-                  onSelectCamera={setSelectedCameraId}
-                  onSelectEvent={setSelectedEventForModal}
-                  onNavigateToMap={() => navigateTo('understand')}
-                  activeSubTab={identifySubTab}
-                  onChangeSubTab={(newSubTab) => navigateTo('identify', newSubTab)}
-                />
+                <ErrorBoundary name="Identify Layer">
+                  <IdentifyConsole
+                    events={events}
+                    selectedCameraId={selectedCameraId}
+                    onSelectCamera={setSelectedCameraId}
+                    onSelectEvent={setSelectedEventForModal}
+                    onNavigateToMap={() => navigateTo('understand')}
+                    activeSubTab={identifySubTab}
+                    onChangeSubTab={(newSubTab) => navigateTo('identify', newSubTab)}
+                  />
+                </ErrorBoundary>
               </motion.div>
             )}
 
@@ -218,14 +225,17 @@ export default function App() {
                 exit="exit"
                 className="h-full w-full"
               >
-                <RespondConsole
-                  events={events}
-                  cameras={cameras}
-                  onSelectEvent={setSelectedEventForModal}
-                />
+                <ErrorBoundary name="Respond Layer">
+                  <RespondConsole
+                    events={events}
+                    cameras={cameras}
+                    onSelectEvent={setSelectedEventForModal}
+                  />
+                </ErrorBoundary>
               </motion.div>
             )}
           </AnimatePresence>
+
         </main>
       </div>
 

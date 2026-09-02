@@ -105,8 +105,11 @@ export default function RespondConsole({ events = [], cameras = [], onSelectEven
 
   const getCameraGps = (camId) => {
     const c = cameras.find((cam) => cam.id === camId);
-    return c ? `${c.lat.toFixed(4)}°N, ${c.lon.toFixed(4)}°E` : (camId === 2 ? '12.9756°N, 77.6067°E' : '18.9401°N, 72.8351°E');
+    return c && typeof c.lat === 'number' && typeof c.lon === 'number'
+      ? `${c.lat.toFixed(4)}°N, ${c.lon.toFixed(4)}°E`
+      : (camId === 2 ? '12.9756°N, 77.6067°E' : '18.9401°N, 72.8351°E');
   };
+
 
   return (
     <div className="flex flex-col lg:flex-row h-full overflow-hidden bg-[#0A0A0A] relative text-[#e5e2e1]">

@@ -12,6 +12,7 @@ from ultralytics import YOLO
 
 from .models import Event
 from .database import SessionLocal
+from .vehicle_intelligence import get_vehicle_intelligence_engine
 
 logger = logging.getLogger("detection_engine")
 
@@ -24,7 +25,7 @@ EVENT_COLORS = {
     "Fire": (0, 90, 255),       # Vivid Fire Orange-Red (Threat)
     "Accident": (0, 140, 255),  # High-Alert Amber Orange (Collision/Crash)
     "Person": (0, 180, 0),      # Muted Green (Normal Passive Pedestrian)
-    "Vehicle": (200, 160, 50),  # Cyan-Blue (Normal Traffic)
+    "Vehicle": (3, 183, 255),   # Electric Amber (Normal Traffic)
     "Default": (140, 140, 140)
 }
 
@@ -86,12 +87,15 @@ class DetectionEngine:
         self.models = models_dict
         self.device = "cuda" if torch.cuda.is_available() else "cpu"
         
-        # Load standard detector for humans + vehicles (Car=2, Motorcycle=3, Bus=5, Truck=7)
+        # Load standard detector for humans
         try:
             self.coco_detector = YOLO("yolo11n.pt")
-            logger.info("Loaded YOLO11n COCO Multi-Object Detector for Person & Traffic Analytics.")
+            logger.info("Loaded YOLO11n COCO Detector for Pedestrian & Threat Analytics.")
         except Exception:
             self.coco_detector = None
+
+        # Unified Vehicle Intelligence Engine
+        self.vehicle_engine = get_vehicle_intelligence_engine()
 
         logger.info(f"VIGRAH AI Detection Engine Initialized | Device: {self.device}")
         self.temporal_tracker = TemporalTracker(consecutive_threshold=3, cooldown_seconds=10.0)
@@ -106,33 +110,37 @@ class DetectionEngine:
         candidate_incident_types = set()
 
         person_boxes = []
-        vehicle_boxes = []
 
-        # 1. Step 1: Detect Humans & Vehicles (Standard COCO Detector)
+        # 1. Step 1: Detect Pedestrians / Humans (Class 0)
         if self.coco_detector:
             try:
                 coco_res = self.coco_detector.predict(
                     source=frame,
                     device=self.device,
-                    classes=[0, 2, 3, 5, 7],  # 0=Person, 2=Car, 3=Motorcycle, 5=Bus, 7=Truck
+                    classes=[0],  # 0=Person
                     conf=0.35,
                     imgsz=416,
                     verbose=False
                 )
                 for res in coco_res:
                     for box in res.boxes:
-                        cls_id = int(box.cls[0].item())
                         conf = float(box.conf[0].item())
                         xyxy = [int(v) for v in box.xyxy[0].tolist()]
-
-                        if cls_id == 0:
-                            person_boxes.append({"bbox": xyxy, "conf": conf})
-                        else:
-                            vehicle_boxes.append({"bbox": xyxy, "conf": conf, "cls_id": cls_id})
+                        person_boxes.append({"bbox": xyxy, "conf": conf})
             except Exception as e:
-                logger.error(f"COCO detector error: {e}")
+                logger.error(f"COCO pedestrian detector error: {e}")
 
-        # 2. Step 2: Custom Threat Model (best.onnx) for Fighting & Fire
+        # 2. Step 2: Unified Vehicle Intelligence (Tracking, Type, Color, Plate, OCR)
+        vehicle_records = []
+        if self.vehicle_engine:
+            vehicle_records, annotated_frame = self.vehicle_engine.process_frame(
+                annotated_frame, 
+                camera_id=str(camera_id)
+            )
+
+        vehicle_boxes = [{"bbox": v["bbox"], "conf": v["vehicle_confidence"]} for v in vehicle_records]
+
+        # 3. Step 3: Custom Threat Model (best.onnx) for Fighting & Fire
         neural_fight_boxes = []
         if "base" in self.models:
             try:
@@ -163,7 +171,7 @@ class DetectionEngine:
             except Exception as e:
                 logger.error(f"Neural threat inference error: {e}")
 
-        # 3. Step 3: Road Accident & Vehicle Collision Analysis
+        # 4. Step 4: Road Accident & Collision Analysis
         num_vehicles = len(vehicle_boxes)
         is_accident = False
 
@@ -218,11 +226,10 @@ class DetectionEngine:
                 if is_accident:
                     break
 
-        # 4. Step 4: Strict Multi-Person Conflict Verification (ELIMINATES SINGLE-PERSON FALSE ALARMS)
+        # 5. Step 5: Strict Multi-Person Conflict Verification
         num_people = len(person_boxes)
 
         if num_people <= 1:
-            # Single person alone -> ZERO ALARM
             for p in person_boxes:
                 raw_detections.append({
                     "event_type": "Person",
@@ -231,7 +238,6 @@ class DetectionEngine:
                     "is_incident": False
                 })
         else:
-            # 2 or more people present -> Check for true physical collision or grappling
             is_fighting = False
             for i in range(num_people):
                 for j in range(i + 1, num_people):
@@ -272,20 +278,11 @@ class DetectionEngine:
                         "is_incident": False
                     })
 
-        # Add detected vehicles to raw_detections for live HUD visualization
-        for v in vehicle_boxes:
-            raw_detections.append({
-                "event_type": "Vehicle",
-                "confidence": round(v["conf"], 2),
-                "bbox": v["bbox"],
-                "is_incident": False
-            })
-
-        # 4. Temporal Confirmation (>=3 Consecutive Frames)
+        # 6. Temporal Confirmation (>=3 Consecutive Frames)
         confirmed_types = self.temporal_tracker.update(camera_id, candidate_incident_types)
         newly_saved_events = []
 
-        # 5. Draw Annotations on Frame
+        # 7. Draw Pedestrian & Threat Annotations on Frame
         for det in raw_detections:
             ev_type = det["event_type"]
             conf = det["confidence"]
@@ -306,15 +303,8 @@ class DetectionEngine:
                 (pw, ph), _ = cv2.getTextSize(p_label, cv2.FONT_HERSHEY_SIMPLEX, 0.42, 1)
                 cv2.rectangle(annotated_frame, (x1, max(0, y1 - 18)), (x1 + pw + 6, max(18, y1)), (254, 242, 0), -1)
                 cv2.putText(annotated_frame, p_label, (x1 + 3, max(14, y1 - 4)), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (10, 10, 10), 1, cv2.LINE_AA)
-            elif ev_type == "Vehicle":
-                # High-visibility Amber box & Badge for Traffic Vehicles
-                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (3, 183, 255), 2)
-                v_label = f"VEHICLE {conf*100:.0f}%"
-                (vw, vh), _ = cv2.getTextSize(v_label, cv2.FONT_HERSHEY_SIMPLEX, 0.42, 1)
-                cv2.rectangle(annotated_frame, (x1, max(0, y1 - 18)), (x1 + vw + 6, max(18, y1)), (3, 183, 255), -1)
-                cv2.putText(annotated_frame, v_label, (x1 + 3, max(14, y1 - 4)), cv2.FONT_HERSHEY_SIMPLEX, 0.42, (10, 10, 10), 1, cv2.LINE_AA)
 
-        # 6. Save Confirmed Incidents to Database & Capture Evidence Snapshot (with Temporal Aggregation)
+        # 8. Save Confirmed Incidents to Database & Capture Evidence Snapshot
         for confirmed_type in confirmed_types:
             type_dets = [d for d in raw_detections if d["event_type"] == confirmed_type and d.get("is_incident", False)]
             if not type_dets:
@@ -323,7 +313,6 @@ class DetectionEngine:
 
             db: Session = SessionLocal()
             try:
-                # Check for recent active incident on the same camera within 30-second window
                 recent_cutoff = datetime.datetime.now() - datetime.timedelta(seconds=30)
                 existing_incident = db.query(Event).filter(
                     Event.camera_id == camera_id,
@@ -332,12 +321,10 @@ class DetectionEngine:
                 ).order_by(Event.timestamp.desc()).first()
 
                 if existing_incident:
-                    # Update active incident rather than inserting separate duplicates
                     existing_incident.confirmation_count = (existing_incident.confirmation_count or 1) + 1
                     existing_incident.confidence = max(existing_incident.confidence, best_det["confidence"])
                     db.commit()
                 else:
-                    # New distinct investigative incident
                     timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S_%f")
                     snapshot_filename = f"incident_cam{camera_id}_{confirmed_type}_{timestamp_str}.jpg"
                     snapshot_full_path = os.path.join(SNAPSHOTS_DIR, snapshot_filename)

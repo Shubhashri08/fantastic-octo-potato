@@ -125,8 +125,13 @@ export default function SystemTelemetry({ statusData, cameras, events }) {
                 <tr key={c.id}>
                   <td className="py-2 font-bold text-[#f5dfc0]">CAM-0{c.id}</td>
                   <td className="py-2">{c.name}</td>
-                  <td className="py-2 uppercase text-[#988f85]">{c.source_type}</td>
-                  <td className="py-2 text-[10px]">{c.lat.toFixed(4)}°N, {c.lon.toFixed(4)}°E</td>
+                  <td className="py-2 uppercase text-[#988f85]">{c.source_type || 'VIDEO'}</td>
+                  <td className="py-2 text-[10px]">
+                    {typeof c.lat === 'number' && typeof c.lon === 'number'
+                      ? `${c.lat.toFixed(4)}°N, ${c.lon.toFixed(4)}°E`
+                      : 'N/A'}
+                  </td>
+
                   <td className="py-2">MJPEG /stream/{c.id}</td>
                   <td className="py-2 text-right">
                     <span className="px-2 py-0.5 text-[10px] bg-[#1d4f43] text-[#9ed1c1]">

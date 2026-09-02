@@ -281,6 +281,8 @@ def flag_vehicle(db: Session, vehicle_id: str, is_flagged: bool = True, reason: 
     logger.info(f"[VehicleFlag] vehicle_id={vehicle_id} is_flagged={is_flagged} reason={reason}")
     return True
 
+from .vehicle_intelligence import VehicleColorClassifier, IndianPlateRecognizer, get_vehicle_intelligence_engine
+
 def search_vehicle_by_image(db: Session, image_bytes: bytes, location: Optional[str] = None) -> Dict[str, Any]:
     """Extracts visual appearance / plate from uploaded image and matches against vehicle database."""
     start_timer = time.perf_counter()
@@ -309,39 +311,62 @@ def search_vehicle_by_image(db: Session, image_bytes: bytes, location: Optional[
             "matches": []
         }
 
-    # 1. Color extraction in HSV space
-    hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-    avg_val = np.mean(hsv[:, :, 2])
-    avg_sat = np.mean(hsv[:, :, 1])
-    avg_hue = np.mean(hsv[:, :, 0])
+    # 1. Isolate primary foreground vehicle via YOLO detector
+    target_vehicle_crop = img
+    detected_veh_type = "Car (Sedan)"
+    try:
+        engine = get_vehicle_intelligence_engine()
+        if engine and engine.detector:
+            yolo_res = engine.detector.predict(source=img, classes=[2, 3, 5, 7], conf=0.25, verbose=False)
+            if yolo_res and yolo_res[0].boxes and len(yolo_res[0].boxes) > 0:
+                boxes = yolo_res[0].boxes
+                largest_box = max(boxes, key=lambda b: (b.xyxy[0][2] - b.xyxy[0][0]) * (b.xyxy[0][3] - b.xyxy[0][1]))
+                bx1, by1, bx2, by2 = [int(v) for v in largest_box.xyxy[0].tolist()]
+                bx1, by1 = max(0, bx1), max(0, by1)
+                bx2, by2 = min(w, bx2), min(h, by2)
+                crop_candidate = img[by1:by2, bx1:bx2]
+                if crop_candidate.size > 0:
+                    target_vehicle_crop = crop_candidate
+                cls_id = int(largest_box.cls[0].item())
+                if cls_id == 3:
+                    detected_veh_type = "Motorcycle"
+                elif cls_id == 5:
+                    detected_veh_type = "Bus"
+                elif cls_id == 7:
+                    detected_veh_type = "Commercial Truck"
+                else:
+                    detected_veh_type = "Car (Sedan)"
+    except Exception as e:
+        logger.info(f"Foreground vehicle crop note: {e}")
 
-    if avg_val < 50:
-        detected_color = "Black"
-    elif avg_val > 190 and avg_sat < 40:
-        detected_color = "White"
-    elif avg_hue < 15 or avg_hue > 165:
-        detected_color = "Red"
-    elif avg_hue < 35:
-        detected_color = "Yellow"
-    elif avg_hue < 85:
-        detected_color = "Green"
-    elif avg_hue < 130:
-        detected_color = "Blue"
-    else:
-        detected_color = "Silver"
+    # 2. Vehicle Color Classification (from vehicle body crop)
+    detected_color, color_conf = VehicleColorClassifier.classify(target_vehicle_crop)
+    detected_color = detected_color.capitalize()
 
-    # 2. Search vehicles by detected color and location
-    search_res = search_vehicles(db, color=detected_color, location=location)
+    # 3. Number Plate Detection & Neural OCR
+    plate_recognizer = IndianPlateRecognizer()
+    plate_detection = plate_recognizer.detect_plate_region(target_vehicle_crop)
+    detected_plate = ""
+    plate_conf = 0.0
+
+    if plate_detection:
+        plate_crop, plate_box, p_conf = plate_detection
+        detected_plate, ocr_conf = plate_recognizer.recognize_text(plate_crop)
+        plate_conf = max(p_conf, ocr_conf)
+
+    # 4. Search vehicles by detected plate or color and location
+    search_res = search_vehicles(db, plate_number=detected_plate if detected_plate else None, color=detected_color, location=location)
     matches = search_res.get("matches", [])
+
     
     if not matches:
         elapsed_ms = round((time.perf_counter() - start_timer) * 1000, 2)
-        logger.info(f"[VehicleImageSearch] detected_color={detected_color} matches=0 elapsed={elapsed_ms}ms")
+        logger.info(f"[VehicleImageSearch] detected_color={detected_color} plate={detected_plate} matches=0 elapsed={elapsed_ms}ms")
         return {
             "status": "no_match",
             "message": "No vehicle matching the visual characteristics of this image was found in the CCTV archives.",
-            "detected_plate": None,
-            "plate_confidence": 0.0,
+            "detected_plate": detected_plate if detected_plate else None,
+            "plate_confidence": plate_conf,
             "detected_color": detected_color,
             "detected_type": "Vehicle",
             "total_matches": 0,
@@ -349,18 +374,18 @@ def search_vehicle_by_image(db: Session, image_bytes: bytes, location: Optional[
         }
 
     top_match = matches[0]
-    detected_plate = top_match["plate"]
-    plate_conf = top_match.get("plate_confidence", 0.95)
+    final_plate = detected_plate if detected_plate else top_match["plate"]
 
     elapsed_ms = round((time.perf_counter() - start_timer) * 1000, 2)
-    logger.info(f"[VehicleImageSearch] detected_color={detected_color} detected_plate={detected_plate} matches={len(matches)} elapsed={elapsed_ms}ms")
+    logger.info(f"[VehicleImageSearch] detected_color={detected_color} detected_plate={final_plate} matches={len(matches)} elapsed={elapsed_ms}ms")
 
     return {
         "status": "success",
-        "detected_plate": detected_plate,
-        "plate_confidence": plate_conf,
+        "detected_plate": final_plate,
+        "plate_confidence": plate_conf if plate_conf > 0 else top_match.get("plate_confidence", 0.95),
         "detected_color": detected_color,
         "detected_type": top_match.get("type", "Car (Sedan)"),
         "total_matches": len(matches),
         "matches": matches
     }
+

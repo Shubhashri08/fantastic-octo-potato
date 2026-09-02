@@ -1,0 +1,42 @@
+{
+  "video_id": "vid_1788374983_blr_mg_road_met",
+  "filename": "blr_mg_road_metro.mp4",
+  "category": "non_violent",
+  "verdict": "NON_VIOLENT_WALKING",
+  "is_violent": false,
+  "has_abnormalities": false,
+  "abnormality_summary": "Normal Pedestrians Walking: No hostile contacts, standard pedestrian walking and browsing dynamics.",
+  "abnormality_details": [],
+  "metrics": {
+    "violence_score": 0.0,
+    "walking_flow_score": 0.0,
+    "max_threat_confidence": 0.0,
+    "fighting_frames": 0,
+    "walking_frames": 0,
+    "total_frames": 90,
+    "inspected_frames": 8,
+    "duration_sec": 6.0,
+    "fps": 15.0,
+    "resolution": "640x480",
+    "avg_pedestrians": 0.0,
+    "max_pedestrians": 0
+  },
+  "stored_location": "video_storage/non_violent/blr_mg_road_metro.mp4",
+  "evidence_snapshots": [
+    {
+      "frame": 0,
+      "timestamp": 0.0,
+      "path": "video_storage/reports/snapshots/blr_mg_road_metro_frame0.jpg",
+      "has_violence": false,
+      "persons": 0
+    },
+    {
+      "frame": 89,
+      "timestamp": 5.93,
+      "path": "video_storage/reports/snapshots/blr_mg_road_metro_frame89.jpg",
+      "has_violence": false,
+      "persons": 0
+    }
+  ],
+  "analyzed_at": "2026-09-03 00:19:43"
+}

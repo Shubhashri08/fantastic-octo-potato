@@ -858,6 +858,66 @@
   ],
   "vehicles": [
     {
+      "vehicle_id": "VEH-MH01BUS204",
+      "plate": "MH 01 LA 4412",
+      "type": "Public Transit Bus",
+      "model": "BEST Electric Transit Bus",
+      "color": "Red",
+      "snapshot": "/snapshots/mumbai_bus_transit.jpg",
+      "is_stolen": false,
+      "location": "Dadar Plaza Traffic Intersection",
+      "camera_id": "CAM-04",
+      "speed_kmh": 28.0
+    },
+    {
+      "vehicle_id": "VEH-MH48DX1051",
+      "plate": "MH 48 DX 1051",
+      "type": "Car (Electric SUV)",
+      "model": "Mahindra BE 6e EV",
+      "color": "Red",
+      "snapshot": "/snapshots/mahindra_ev_mh48dx1051.jpg",
+      "is_stolen": false,
+      "location": "Vasai-Virar Arterial Corridor",
+      "camera_id": "CAM-03",
+      "speed_kmh": 35.0
+    },
+    {
+      "vehicle_id": "VEH-MH43CB8645",
+      "plate": "MH 43 CB 8645",
+      "type": "Auto-Rickshaw (3-Wheeler)",
+      "model": "Bajaj RE Auto-Rickshaw",
+      "color": "Yellow",
+      "snapshot": "/snapshots/autorickshaw_mh43cb8645.jpg",
+      "is_stolen": false,
+      "location": "Navi Mumbai Auto Stand Junction",
+      "camera_id": "CAM-02",
+      "speed_kmh": 18.5
+    },
+    {
+      "vehicle_id": "VEH-MH46DF9820",
+      "plate": "MH 46 DF 9820",
+      "type": "Car (SUV)",
+      "model": "Tata Punch SUV",
+      "color": "White",
+      "snapshot": "/snapshots/tata_punch_mh46df9820.jpg",
+      "is_stolen": false,
+      "location": "Vashi Sector 17 Transit Gate",
+      "camera_id": "CAM-01",
+      "speed_kmh": 22.0
+    },
+    {
+      "vehicle_id": "VEH-MH46CT5126",
+      "plate": "MH 46 CT 5126",
+      "type": "Car (Sedan)",
+      "model": "BMW 2 Series Gran Coupe",
+      "color": "Blue",
+      "snapshot": "/snapshots/bmw_mh46ct5126.jpg",
+      "is_stolen": false,
+      "location": "Mumbai Western Coastal Corridor",
+      "camera_id": "CAM-01",
+      "speed_kmh": 54.5
+    },
+    {
       "vehicle_id": "VEH-0001",
       "plate": "KA 02 ZX 1001",
       "type": "Car (Sedan)",

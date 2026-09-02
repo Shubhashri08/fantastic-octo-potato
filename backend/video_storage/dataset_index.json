@@ -1,0 +1,67 @@
+{
+  "total_videos": 6,
+  "violent_count": 2,
+  "non_violent_count": 4,
+  "videos": [
+    {
+      "filename": "whatsapp_video_223554.mp4",
+      "category": "non_violent",
+      "verdict": "NON_VIOLENT_WALKING",
+      "is_violent": false,
+      "stored_location": "video_storage/non_violent/whatsapp_video_223554.mp4",
+      "report_path": "video_storage/reports/whatsapp_video_223554_report.json",
+      "duration_sec": 20.9,
+      "analyzed_at": "2026-09-03 00:19:46"
+    },
+    {
+      "filename": "blr_mg_road_metro.mp4",
+      "category": "non_violent",
+      "verdict": "NON_VIOLENT_WALKING",
+      "is_violent": false,
+      "stored_location": "video_storage/non_violent/blr_mg_road_metro.mp4",
+      "report_path": "video_storage/reports/blr_mg_road_metro_report.json",
+      "duration_sec": 6.0,
+      "analyzed_at": "2026-09-03 00:19:43"
+    },
+    {
+      "filename": "mumbai_csmt_station.mp4",
+      "category": "non_violent",
+      "verdict": "NON_VIOLENT_WALKING",
+      "is_violent": false,
+      "stored_location": "video_storage/non_violent/mumbai_csmt_station.mp4",
+      "report_path": "video_storage/reports/mumbai_csmt_station_report.json",
+      "duration_sec": 6.0,
+      "analyzed_at": "2026-09-03 00:19:42"
+    },
+    {
+      "filename": "fight_2.mp4",
+      "category": "violent",
+      "verdict": "VIOLENT_FIGHTING",
+      "is_violent": true,
+      "stored_location": "video_storage/violent/fight_2.mp4",
+      "report_path": "video_storage/reports/fight_2_report.json",
+      "duration_sec": 5.0,
+      "analyzed_at": "2026-09-03 00:19:42"
+    },
+    {
+      "filename": "fight_1.mp4",
+      "category": "violent",
+      "verdict": "VIOLENT_FIGHTING",
+      "is_violent": true,
+      "stored_location": "video_storage/violent/fight_1.mp4",
+      "report_path": "video_storage/reports/fight_1_report.json",
+      "duration_sec": 5.0,
+      "analyzed_at": "2026-09-03 00:19:41"
+    },
+    {
+      "filename": "whatsapp_test_video.mp4",
+      "category": "non_violent",
+      "verdict": "NON_VIOLENT_WALKING",
+      "is_violent": false,
+      "stored_location": "video_storage/non_violent/whatsapp_test_video.mp4",
+      "report_path": "video_storage/reports/whatsapp_test_video_report.json",
+      "duration_sec": 16.0,
+      "analyzed_at": "2026-09-03 00:19:41"
+    }
+  ]
+}

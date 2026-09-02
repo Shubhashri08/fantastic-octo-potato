@@ -1,24 +1,20 @@
 import os
 import cv2
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 import threading
 import numpy as np
 import logging
-from collections import deque
 from typing import Dict, Optional
-from sqlalchemy.orm import Session
-
-from .models import Event
-from .database import SessionLocal
 
 logger = logging.getLogger("stream_manager")
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-RECORDINGS_DIR = os.path.join(BASE_DIR, "recordings")
-os.makedirs(RECORDINGS_DIR, exist_ok=True)
-
 class CameraStreamWorker:
+    """
+    High-Performance Zero-Latency Camera Stream Worker.
+    Drains frames in background and serves smooth, real-time MJPEG streams
+    with integrated neural vehicle & threat detection.
+    """
     def __init__(self, camera_id: int, source: str, source_type: str, detection_engine):
         self.camera_id = camera_id
         self.source = source
@@ -31,10 +27,6 @@ class CameraStreamWorker:
         self.fps = 0.0
         self.frame_count = 0
         self.last_annotated_frame = None
-
-        # Auto-DVR Pre-Buffer (last 45 frames ~ 2.5 seconds)
-        self.frame_buffer = deque(maxlen=45)
-        self.is_recording_dvr = False
 
         # Zero-Latency Frame Grabber
         self.latest_raw_frame = None
@@ -83,47 +75,6 @@ class CameraStreamWorker:
         cv2.putText(frame, text, (20, 75), cv2.FONT_HERSHEY_SIMPLEX, 0.5, (180, 180, 180), 1)
         return frame
 
-    def _record_incident_clip(self, event_id: int, initial_buffer: list, event_type: str):
-        """Background thread that compiles a 10-second MP4 video clip for the confirmed incident."""
-        try:
-            timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
-            clip_filename = f"clip_cam{self.camera_id}_{event_type}_{timestamp_str}.mp4"
-            clip_full_path = os.path.join(RECORDINGS_DIR, clip_filename)
-
-            h, w = initial_buffer[0].shape[:2] if initial_buffer else (480, 640)
-            fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-            writer = cv2.VideoWriter(clip_full_path, fourcc, 15.0, (w, h))
-
-            # 1. Write pre-incident buffer frames
-            for f in initial_buffer:
-                writer.write(f)
-
-            # 2. Record next 90 frames (~6 seconds live post-incident)
-            captured = 0
-            while captured < 90 and self.is_running:
-                if self.last_annotated_frame is not None:
-                    writer.write(self.last_annotated_frame)
-                    captured += 1
-                time.sleep(0.065)
-
-            writer.release()
-            logger.info(f"📹 [DVR RECORDED] Auto-saved 10s incident clip: {clip_filename}")
-
-            # Update DB Event with video_clip_path
-            db: Session = SessionLocal()
-            try:
-                ev = db.query(Event).filter(Event.id == event_id).first()
-                if ev:
-                    ev.video_clip_path = f"/recordings/{clip_filename}"
-                    db.commit()
-            except Exception as e:
-                logger.error(f"Error updating video_clip_path in DB: {e}")
-            finally:
-                db.close()
-
-        except Exception as e:
-            logger.error(f"Error during DVR incident clip recording: {e}")
-
     def start(self):
         if self.is_running:
             return
@@ -158,12 +109,11 @@ class CameraStreamWorker:
                 raw_frame = self._create_synthetic_frame(f"Connecting to: {self.source}")
                 time.sleep(0.04)
 
-            # Subsample inference: process every 2nd frame for real-time responsiveness
+            # Process frame through detection engine
             frame_idx += 1
-            new_events = []
             if frame_idx % 2 == 0 or self.last_annotated_frame is None:
                 if self.detection_engine:
-                    annotated, new_events = self.detection_engine.process_frame(raw_frame, self.camera_id)
+                    annotated, _ = self.detection_engine.process_frame(raw_frame, self.camera_id)
                     self.last_annotated_frame = annotated
                 else:
                     self.last_annotated_frame = raw_frame
@@ -183,18 +133,6 @@ class CameraStreamWorker:
             label = cam_labels.get(self.camera_id, f"SURVEILLANCE NODE // CAM-0{self.camera_id}")
             cv2.putText(display_frame, f"● REC [LIVE] {label}", (8, 15), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (0, 242, 254), 1)
             cv2.putText(display_frame, f"{ts_str} IST", (max(10, dw - 170), 15), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (245, 223, 192), 1)
-
-            self.frame_buffer.append(display_frame.copy())
-
-            # Trigger Auto-DVR Recording when an incident is confirmed
-            if new_events:
-                for ev in new_events:
-                    buffer_snapshot = list(self.frame_buffer)
-                    threading.Thread(
-                        target=self._record_incident_clip,
-                        args=(ev["id"], buffer_snapshot, ev["event_type"]),
-                        daemon=True
-                    ).start()
 
             ret, buffer = cv2.imencode('.jpg', display_frame, [int(cv2.IMWRITE_JPEG_QUALITY), 75])
             if ret:

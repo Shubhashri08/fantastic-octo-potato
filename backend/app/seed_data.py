@@ -47,6 +47,10 @@ def init_db_and_seed(force_reset_events: bool = False):
     fight_1_path = os.path.join(SAMPLES_DIR, "fight_1.mp4")
     fire_1_path = os.path.join(SAMPLES_DIR, "fire_1.mp4")
 
+    whatsapp_video_path = os.path.join(BASE_DIR, "sample_media", "whatsapp_test_video.mp4")
+    if not os.path.exists(whatsapp_video_path):
+        whatsapp_video_path = os.path.join(SAMPLES_DIR, "mumbai_csmt_station.mp4")
+
     cameras_to_seed = [
         {
             "id": 1,
@@ -101,6 +105,15 @@ def init_db_and_seed(force_reset_events: bool = False):
             "lat": 18.9650,
             "lon": 72.8180,
             "is_active": True
+        },
+        {
+            "id": 7,
+            "name": "CAM-07: Mall Concourse (WhatsApp Test Video - Passive Walking)",
+            "source": whatsapp_video_path,
+            "source_type": "video",
+            "lat": 18.9350,
+            "lon": 72.8290,
+            "is_active": True
         }
     ]
 
@@ -116,6 +129,7 @@ def init_db_and_seed(force_reset_events: bool = False):
         else:
             new_cam = Camera(**cam_info)
             db.add(new_cam)
+    db.commit()
 
     # 2. Seed Vehicle Records & Historical Sightings if empty
     CACHE_FILE = os.path.join(BASE_DIR, "reid_gallery_cache.json")

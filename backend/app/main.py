@@ -66,10 +66,11 @@ async def lifespan(app: FastAPI):
     
     # 2. Auto-index video evidence sources if empty
     from .video_person_engine import video_person_engine
-    try:
-        video_person_engine.auto_index_sample_videos_if_empty()
-    except Exception as e:
-        logger.warning(f"Video person auto-index warning: {e}")
+    if hasattr(video_person_engine, "auto_index_sample_videos_if_empty"):
+        try:
+            video_person_engine.auto_index_sample_videos_if_empty()
+        except Exception as e:
+            logger.warning(f"Video person auto-index warning: {e}")
 
     elapsed_ms = round((time.perf_counter() - init_start) * 1000, 2)
     logger.info(f"VIGRAH AI API Ready (Startup completed in {elapsed_ms}ms).")
@@ -730,5 +731,39 @@ def system_status(db: Session = Depends(get_db)):
             "indexed_videos": indexed_videos_count,
             "indexed_tracks": indexed_tracks_count
         },
-        "phase_2_modules": ["Person Finder (ReID)", "Vehicle Finder (Plate & Appearance)", "Multi-City GIS Grid"]
+        "phase_2_modules": ["Person Finder (ReID)", "Vehicle Finder (Plate & Appearance)", "Multi-City GIS Grid", "Backend Video Storage & Abnormality Inspector"]
     }
+
+
+# ================= BACKEND VIDEO STORAGE & ABNORMALITY INSPECTOR =================
+from .video_storage_manager import backend_video_storage, STORAGE_DIR, VIOLENT_DIR, NON_VIOLENT_DIR, UNCLASSIFIED_DIR
+
+@app.get("/api/video-storage")
+def get_video_storage_catalog(category: Optional[str] = None):
+    """Retrieve catalog of backend stored violent and non-violent videos."""
+    return backend_video_storage.list_stored_videos(category=category)
+
+
+@app.post("/api/video-storage/upload")
+async def upload_and_store_video(
+    file: UploadFile = File(...),
+    custom_name: Optional[str] = Query(None)
+):
+    """Upload a video into backend unclassified storage, inspect for violence/walking, and sort."""
+    clean_filename = (custom_name or file.filename).replace(" ", "_")
+    save_path = os.path.join(UNCLASSIFIED_DIR, f"{int(time.time())}_{clean_filename}")
+    with open(save_path, "wb") as buffer:
+        content = await file.read()
+        buffer.write(content)
+
+    try:
+        report = backend_video_storage.inspect_and_store_video(
+            source_video_path=save_path,
+            custom_name=clean_filename
+        )
+        return report
+    except Exception as e:
+        logger.error(f"Error inspecting uploaded video: {e}")
+        raise HTTPException(status_code=500, detail=f"Inspection failed: {str(e)}")
+
+
