@@ -27,15 +27,41 @@ const PARSED_CITIES = {
   Bengaluru: cityMeshData?.Bengaluru?.nodes || []
 };
 
+const BASEMAP_STYLES = {
+  voyager: {
+    id: 'voyager',
+    name: 'CARTO VOYAGER',
+    url: (key) => key 
+      ? `https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png?key=${key}`
+      : 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png'
+  },
+  dark: {
+    id: 'dark',
+    name: 'CARTO DARK CYBER',
+    url: (key) => key 
+      ? `https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?key=${key}`
+      : 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png'
+  },
+  positron: {
+    id: 'positron',
+    name: 'CARTO POSITRON',
+    url: (key) => key 
+      ? `https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png?key=${key}`
+      : 'https://{s}.basemaps.cartocdn.com/rastertiles/light_all/{z}/{x}/{y}{r}.png'
+  }
+};
+
 export default function CameraMap({ cameras, events, selectedCameraId, onSelectCamera, onNavigateToLive }) {
   const mapContainerRef = useRef(null);
   const mapInstanceRef = useRef(null);
   const layerGroupRef = useRef(null);
+  const tileLayerRef = useRef(null);
   const videoElementRef = useRef(null);
 
   const [selectedCity, setSelectedCity] = useState('Mumbai');
   const [cityNodes, setCityNodes] = useState(PARSED_CITIES.Mumbai);
   const [activeNode, setActiveNode] = useState(PARSED_CITIES.Mumbai[0] || null);
+  const [basemapStyle, setBasemapStyle] = useState('voyager');
 
   // Video & Search Controls
   const [playbackMode, setPlaybackMode] = useState('stream'); // 'stream' (MJPEG) | 'video' (Direct MP4)
@@ -60,7 +86,7 @@ export default function CameraMap({ cameras, events, selectedCameraId, onSelectC
     }
   };
 
-  // 2. Initialize Leaflet Map with CARTO Dark Cyber Layer
+  // 2. Initialize Leaflet Map Instance
   useEffect(() => {
     if (!mapContainerRef.current) return;
 
@@ -79,18 +105,16 @@ export default function CameraMap({ cameras, events, selectedCameraId, onSelectC
 
       L.control.zoom({ position: 'bottomright' }).addTo(map);
 
-      // CARTO Dark Cyber Basemap (with API key support)
+      // CARTO Basemap (with API key support)
       const cartoApiKey = (import.meta.env.VITE_CARTO_API_KEY || import.meta.env.VITE_MAP_API_KEY || 'cb1_2pk7_1_90609325753bc4f1255b1901').trim();
-      const cartoUrl = cartoApiKey 
-        ? `https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png?api_key=${cartoApiKey}`
-        : 'https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}{r}.png';
+      const styleCfg = BASEMAP_STYLES[basemapStyle] || BASEMAP_STYLES.voyager;
+      const cartoUrl = styleCfg.url(cartoApiKey);
 
       const tileLayer = L.tileLayer(cartoUrl, {
         attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
         maxZoom: 19,
         subdomains: 'abcd'
       });
-
 
       tileLayer.on('tileerror', (error, tile) => {
         if (tile) {
@@ -99,6 +123,7 @@ export default function CameraMap({ cameras, events, selectedCameraId, onSelectC
       });
 
       tileLayer.addTo(map);
+      tileLayerRef.current = tileLayer;
 
       const markerLayer = L.layerGroup().addTo(map);
       layerGroupRef.current = markerLayer;
@@ -114,12 +139,41 @@ export default function CameraMap({ cameras, events, selectedCameraId, onSelectC
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
         layerGroupRef.current = null;
+        tileLayerRef.current = null;
       }
       if (mapContainerRef.current) {
         mapContainerRef.current._leaflet_id = null;
       }
     };
   }, []);
+
+  // Update Basemap tile layer when style changes
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    const cartoApiKey = (import.meta.env.VITE_CARTO_API_KEY || import.meta.env.VITE_MAP_API_KEY || 'cb1_2pk7_1_90609325753bc4f1255b1901').trim();
+    const styleCfg = BASEMAP_STYLES[basemapStyle] || BASEMAP_STYLES.voyager;
+    const cartoUrl = styleCfg.url(cartoApiKey);
+
+    if (tileLayerRef.current && mapInstanceRef.current.hasLayer(tileLayerRef.current)) {
+      mapInstanceRef.current.removeLayer(tileLayerRef.current);
+    }
+
+    const newTileLayer = L.tileLayer(cartoUrl, {
+      attribution: '&copy; <a href="https://carto.com/">CARTO</a> &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+      maxZoom: 19,
+      subdomains: 'abcd'
+    });
+
+    newTileLayer.on('tileerror', (error, tile) => {
+      if (tile) {
+        tile.src = 'https://tile.openstreetmap.org/0/0/0.png';
+      }
+    });
+
+    newTileLayer.addTo(mapInstanceRef.current);
+    newTileLayer.bringToBack();
+    tileLayerRef.current = newTileLayer;
+  }, [basemapStyle]);
 
   // 3. Render High-Visibility Glowing Map Pins
   useEffect(() => {
@@ -254,9 +308,18 @@ export default function CameraMap({ cameras, events, selectedCameraId, onSelectC
             </select>
           </div>
 
-          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#141624] border border-cyan-900/40 rounded-lg text-[11px] text-[#00F2FE] font-bold">
-            <Globe className="w-3.5 h-3.5" />
-            <span>CARTO DARK CYBER</span>
+          {/* Basemap Style Selector */}
+          <div className="flex items-center gap-2 border-l border-white/[0.08] pl-3">
+            <Globe className="w-3.5 h-3.5 text-cyan-400" />
+            <select
+              value={basemapStyle}
+              onChange={(e) => setBasemapStyle(e.target.value)}
+              className="px-2.5 py-1.5 rounded-lg bg-[#141624] border border-cyan-900/50 text-[11px] text-[#00F2FE] font-bold outline-none cursor-pointer hover:border-cyan-400 transition"
+            >
+              <option value="voyager">CARTO VOYAGER (DAY)</option>
+              <option value="dark">CARTO DARK CYBER</option>
+              <option value="positron">CARTO POSITRON</option>
+            </select>
           </div>
 
           <span className="text-[10px] px-2 py-0.5 bg-[#142820] text-[#9ed1c1] border border-[#1d4f43] rounded font-bold flex items-center gap-1.5">

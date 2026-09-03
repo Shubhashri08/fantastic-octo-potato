@@ -6,7 +6,10 @@ import logging
 import datetime
 import numpy as np
 from typing import Dict, List, Optional, Tuple, Any
-from ultralytics import YOLO
+try:
+    from ultralytics import YOLO
+except ImportError:
+    YOLO = None
 
 logger = logging.getLogger("vehicle_intelligence")
 

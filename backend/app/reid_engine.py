@@ -175,7 +175,7 @@ class ReIDEngine:
             ("samples/fight_1.mp4", 1, "CAM-MUM-01 CSMT Concourse Altercation", "Mumbai Safe City / Central Station", 18.9401, 72.8351),
             ("samples/fire_1.mp4", 2, "CAM-BLR-01 MG Road Commercial Corridor", "Bengaluru Safe City / MG Road", 12.9756, 77.6067),
             ("samples/accident_1.mp4", 3, "CAM-BLR-02 Outer Ring Road Crossing", "Bengaluru Tech Corridor", 12.9352, 77.6245),
-            ("samples/accident_2.mp4", 4, "CAM-MUM-02 Bandra-Worli Sea Link Toll", "Mumbai Coastal Corridor", 19.0345, 72.8184),
+            ("samples/accident_2.mp4", 4, "CAM-MUM-02 Bandra-Worli Sea Link Toll", "Mumbai Coastal Corridor", 19.0440, 72.8258),
             ("samples/fight_2.mp4", 5, "CAM-BLR-03 Indiranagar 100ft Road Signal", "Bengaluru East Grid", 12.9784, 77.6408)
         ]
 
@@ -310,7 +310,7 @@ class ReIDEngine:
                                         color = "Silver"
 
                                 is_stolen = (vehicle_count % 3 == 0)
-                                plate = f"KA 0{cam_id} {'AB' if is_stolen else 'ZX'} {1000 + vehicle_count}"
+                                plate = f"MH 0{cam_id} {'AB' if is_stolen else 'ZX'} {1000 + vehicle_count}"
                                 bolo = "CRITICAL BOLO: Reported Stolen" if is_stolen else "NORMAL: Verified Vehicle Registry"
 
                                 self.vehicle_gallery.append({
@@ -666,7 +666,7 @@ class ReIDEngine:
             matches = [self._format_vehicle_dossier(self.vehicle_gallery[0], match_conf=0.94)]
 
         top_match = matches[0] if matches else None
-        detected_plate = top_match["plate"] if top_match else "KA 04 AB 1024"
+        detected_plate = top_match["plate"] if top_match else "MH 46 CB 0005"
         plate_conf = 0.96 if top_match else 0.90
 
         return {

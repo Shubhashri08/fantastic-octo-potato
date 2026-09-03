@@ -592,7 +592,7 @@ export default function IdentifyConsole({
                         <div className="relative">
                           <input
                             type="text"
-                            placeholder="e.g. KA 02 ZX 1001"
+                            placeholder="e.g. MH 46 CB 0005, MH 43 CG 3824"
                             value={plateInput}
                             onChange={(e) => {
                               setPlateInput(e.target.value);

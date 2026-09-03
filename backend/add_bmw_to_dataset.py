@@ -50,8 +50,8 @@ def add_bmw_to_dataset():
                 camera_name="CAM-01 Mumbai Western Coastal Corridor",
                 location="Mumbai Western Coastal Corridor",
                 city="Mumbai",
-                latitude=19.0345,
-                longitude=72.8184,
+                latitude=19.0440,
+                longitude=72.8258,
                 speed_kmh=54.5,
                 timestamp=now - datetime.timedelta(minutes=15),
                 evidence_image="/snapshots/bmw_mh46ct5126.jpg"

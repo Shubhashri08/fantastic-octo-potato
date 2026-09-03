@@ -604,17 +604,19 @@ def get_city_nodes(city_name: str, limit: int = 200):
 # ================= STREAMING & DETECTION CONTROLS =================
 
 @app.get("/stream/{camera_id}")
-def video_feed(camera_id: int):
+async def video_feed(camera_id: int):
     """MJPEG Video streaming endpoint for real-time live feed playback."""
     sm = get_stream_manager()
     worker = sm.get_worker(camera_id)
     if not worker or not worker.is_running:
         from .database import SessionLocal
         db = SessionLocal()
-        cam = db.query(Camera).filter(Camera.id == camera_id).first()
-        db.close()
-        if cam:
-            sm.start_camera(cam.id, cam.source, cam.source_type)
+        try:
+            cam = db.query(Camera).filter(Camera.id == camera_id).first()
+            if cam:
+                sm.start_camera(cam.id, cam.source, cam.source_type)
+        finally:
+            db.close()
 
     return StreamingResponse(
         sm.generate_mjpeg_frames(camera_id),
@@ -675,6 +677,88 @@ def start_detection(req: StartDetectionRequest, db: Session = Depends(get_db)):
     sm.start_camera(cam.id, cam.source, cam.source_type)
 
     return {"status": "started", "camera_id": cam.id, "source": cam.source, "source_type": cam.source_type}
+
+@app.post("/api/cameras/{camera_id}/set_source")
+def set_camera_source(camera_id: int, req: StartDetectionRequest, db: Session = Depends(get_db)):
+    """Dynamically updates any camera's IP or stream source and immediately initiates live neural processing."""
+    cam = db.query(Camera).filter(Camera.id == camera_id).first()
+    if not cam:
+        cam = Camera(
+            id=camera_id, 
+            name=f"NODE-0{camera_id}: Dynamic Phone IP Camera", 
+            source=req.source, 
+            source_type=req.source_type or "rtsp", 
+            lat=18.9438,
+            lon=72.8233,
+            is_active=True
+        )
+        db.add(cam)
+    else:
+        cam.source = req.source
+        if req.source_type:
+            cam.source_type = req.source_type
+        cam.is_active = True
+    db.commit()
+    db.refresh(cam)
+
+    sm = get_stream_manager()
+    sm.start_camera(cam.id, cam.source, cam.source_type)
+    return {
+        "status": "connected", 
+        "camera_id": cam.id, 
+        "source": cam.source, 
+        "source_type": cam.source_type,
+        "stream_url": f"/stream/{cam.id}"
+    }
+
+@app.get("/stream/ip_direct")
+def stream_ip_direct(url: str):
+    """Direct dynamic proxy stream for arbitrary phone camera IP URLs."""
+    import urllib.request
+    
+    # Auto-normalize
+    target_url = url.strip()
+    if not (target_url.startswith("http://") or target_url.startswith("https://")):
+        target_url = "http://" + target_url
+    if target_url.endswith("/videos"):
+        target_url = target_url[:-7] + "/video"
+    elif target_url.endswith("/videos/"):
+        target_url = target_url[:-8] + "/video"
+    elif target_url.endswith("/"):
+        target_url = target_url + "video"
+    elif target_url.count("/") == 2:
+        target_url = target_url + "/video"
+
+    def direct_generator():
+        try:
+            req = urllib.request.Request(
+                target_url, 
+                headers={'User-Agent': 'Mozilla/5.0 (VigrahAI Direct Bridge)'}
+            )
+            stream = urllib.request.urlopen(req, timeout=5.0)
+            bytes_buffer = b""
+            while True:
+                chunk = stream.read(4096)
+                if not chunk:
+                    break
+                bytes_buffer += chunk
+                a = bytes_buffer.find(b'\xff\xd8')
+                if a != -1:
+                    b = bytes_buffer.find(b'\xff\xd9', a + 2)
+                    if b != -1:
+                        jpg = bytes_buffer[a:b+2]
+                        bytes_buffer = bytes_buffer[b+2:]
+                        yield (b'--frame\r\n'
+                               b'Content-Type: image/jpeg\r\n\r\n' + jpg + b'\r\n')
+                elif len(bytes_buffer) > 65536:
+                    bytes_buffer = bytes_buffer[-2048:]
+        except Exception as e:
+            logger.warning(f"Direct stream generator closed: {e}")
+
+    return StreamingResponse(
+        direct_generator(),
+        media_type="multipart/x-mixed-replace; boundary=frame"
+    )
 
 @app.post("/api/stop_detection")
 def stop_detection(camera_id: int, db: Session = Depends(get_db)):

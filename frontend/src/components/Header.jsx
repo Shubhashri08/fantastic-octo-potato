@@ -23,7 +23,7 @@ export default function Header({ statusData, onRefresh, activeTab, eventCount })
             VIGRAH <span className="text-[#9ed1c1]">AI</span>
           </span>
           <span className="text-[10px] px-2 py-0.5 rounded bg-[#1C1B1B] text-[#cfc5b9] border border-[#353534] font-mono uppercase">
-            STITCH COMMAND v1.0
+
           </span>
         </div>
       </div>

@@ -48,7 +48,7 @@ if os.path.exists(KML_PATH):
 
 # 2. Curated Real CCTV Surveillance Nodes for Mumbai
 mumbai_raw = [
-    {"id": "MUM-01", "name": "Bandra-Worli Sea Link Toll Plaza", "lat": 19.0345, "lon": 72.8184, "zone": "Western Coastal Corridor"},
+    {"id": "MUM-01", "name": "Bandra-Worli Sea Link Toll Plaza", "lat": 19.0440, "lon": 72.8258, "zone": "Western Coastal Corridor"},
     {"id": "MUM-02", "name": "CSMT Central Transit Concourse", "lat": 18.9401, "lon": 72.8351, "zone": "South Mumbai Transit Hub"},
     {"id": "MUM-03", "name": "Marine Drive Promenade North", "lat": 18.9438, "lon": 72.8231, "zone": "Marine Lines Coastal Zone"},
     {"id": "MUM-04", "name": "Nariman Business District", "lat": 18.9256, "lon": 72.8242, "zone": "Nariman Business District"},

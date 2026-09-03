@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 
 const SOURCE_PRESETS = [
+  { label: 'Mobile / Phone IP Camera', type: 'rtsp', source: 'http://10.49.119.32:8080/video', desc: 'Android IP Webcam / DroidCam MJPEG stream' },
   { label: 'Built-in / USB Webcam', type: 'webcam', source: '0', desc: 'Hardware camera node #0' },
   { label: 'Violence Altercation #1', type: 'video', source: 'samples/fight_1.mp4', desc: 'CSMT CCTV fight scenario' },
   { label: 'Violence Altercation #2', type: 'video', source: 'samples/fight_2.mp4', desc: 'Dadar Junction altercation' },
@@ -22,6 +23,15 @@ const SOURCE_PRESETS = [
 ];
 
 
+const FALLBACK_CAMERAS = [
+  { id: 1, name: "CAM-01: Mumbai CSMT Concourse Altercation", source: "samples/fight_1.mp4", source_type: "video", lat: 18.9401, lon: 72.8351, is_active: true },
+  { id: 2, name: "CAM-02: Bengaluru MG Road Commercial Corridor", source: "samples/fire_1.mp4", source_type: "video", lat: 12.9756, lon: 77.6067, is_active: true },
+  { id: 3, name: "CAM-03: Mumbai Marine Drive Coastal Unit", source: "http://10.49.119.32:8080/video", source_type: "rtsp", lat: 18.9438, lon: 72.8233, is_active: true },
+  { id: 4, name: "CAM-04: Bengaluru Trinity Circle Transit Node", source: "samples/fire_1.mp4", source_type: "video", lat: 12.9725, lon: 77.6200, is_active: true },
+  { id: 5, name: "CAM-05: Bengaluru Outer Ring Road Hub", source: "samples/fight_1.mp4", source_type: "video", lat: 12.9820, lon: 77.6200, is_active: true },
+  { id: 6, name: "CAM-06: Mumbai Worli Sea Face Intercept", source: "samples/fight_1.mp4", source_type: "video", lat: 18.9650, lon: 72.8180, is_active: true }
+];
+
 export default function LiveStreamGrid({
   cameras = [],
   selectedCameraId,
@@ -29,6 +39,8 @@ export default function LiveStreamGrid({
   onStartDetection,
   onStopDetection
 }) {
+  const activeCameraList = (cameras && cameras.length > 0) ? cameras : FALLBACK_CAMERAS;
+
   const [editingCamId, setEditingCamId] = useState(null);
   const [editSource, setEditSource] = useState('');
   const [editSourceType, setEditSourceType] = useState('video');
@@ -63,6 +75,7 @@ export default function LiveStreamGrid({
   };
 
   const handleSaveConfig = (camId) => {
+    setStreamErrors(prev => ({ ...prev, [camId]: false }));
     if (onStartDetection) {
       onStartDetection(camId, editSource, editSourceType);
     }
@@ -94,7 +107,6 @@ export default function LiveStreamGrid({
         setSnapshotToast(`Snapshot captured from NODE-0${cam.id}`);
         setTimeout(() => setSnapshotToast(null), 3000);
       } else {
-        // Fallback simulated capture confirmation
         setSnapshotToast(`Snapshot frame locked for NODE-0${cam.id}`);
         setTimeout(() => setSnapshotToast(null), 3000);
       }
@@ -106,7 +118,7 @@ export default function LiveStreamGrid({
   };
 
   const handleStartAll = () => {
-    cameras.forEach((cam) => {
+    activeCameraList.forEach((cam) => {
       if (!cam.is_active && onStartDetection) {
         onStartDetection(cam.id, cam.source, cam.source_type);
       }
@@ -114,17 +126,17 @@ export default function LiveStreamGrid({
   };
 
   const handleStopAll = () => {
-    cameras.forEach((cam) => {
+    activeCameraList.forEach((cam) => {
       if (cam.is_active && onStopDetection) {
         onStopDetection(cam.id);
       }
     });
   };
 
-  const activeCamerasCount = (cameras || []).filter(c => c && c.is_active).length;
+  const activeCamerasCount = activeCameraList.filter(c => c && c.is_active).length;
 
   // Filter cameras based on search and status
-  const filteredCameras = (cameras || []).filter((cam) => {
+  const filteredCameras = activeCameraList.filter((cam) => {
     if (!cam) return false;
     const matchSearch = !searchQuery.trim() || 
       (cam.name && cam.name.toLowerCase().includes(searchQuery.toLowerCase())) ||
@@ -142,7 +154,7 @@ export default function LiveStreamGrid({
   // Determine which cameras to display
   let displayCameras = [];
   if (selectedCameraId) {
-    const focused = filteredCameras.find((c) => c.id === selectedCameraId) || cameras.find(c => c.id === selectedCameraId);
+    const focused = filteredCameras.find((c) => c.id === selectedCameraId) || activeCameraList.find(c => c.id === selectedCameraId);
     displayCameras = focused ? [focused] : filteredCameras.slice(0, 3);
   } else if (viewMode === 'all') {
     displayCameras = filteredCameras;
@@ -151,7 +163,7 @@ export default function LiveStreamGrid({
   } else if (viewMode === 'primary') {
     displayCameras = filteredCameras.length >= 3 ? filteredCameras.slice(0, 3) : filteredCameras;
   } else if (typeof viewMode === 'number') {
-    const single = filteredCameras.find(c => c.id === viewMode) || cameras.find(c => c.id === viewMode);
+    const single = filteredCameras.find(c => c.id === viewMode) || activeCameraList.find(c => c.id === viewMode);
     displayCameras = single ? [single] : filteredCameras.slice(0, 3);
   } else {
     displayCameras = filteredCameras.slice(0, 3);
@@ -654,11 +666,11 @@ export default function LiveStreamGrid({
                   type="text"
                   value={editSource}
                   onChange={(e) => setEditSource(e.target.value)}
-                  placeholder="e.g. 0 (Webcam), or samples/cctv.mp4, or rtsp://..."
+                  placeholder="e.g. http://10.49.119.32:8080/video, 0 (Webcam), or rtsp://..."
                   className="w-full px-3.5 py-2.5 bg-[#06070a] border border-white/[0.1] rounded-xl text-[#e5e2e1] text-xs font-mono focus:border-[#f5dfc0] outline-none"
                 />
-                <p className="text-[9px] text-[#777]">
-                  Supports local webcam index (0, 1), video file paths (samples/*.mp4), or network RTSP streams.
+                <p className="text-[9px] text-[#888]">
+                  💡 <strong>Phone IP Camera Tip:</strong> For Android IP Webcam, use <span className="text-cyan-300 font-bold">/video</span> (e.g. <code className="text-amber-300">http://10.49.119.32:8080/video</code>) rather than <span className="text-red-400">/videos</span>.
                 </p>
               </div>
 
