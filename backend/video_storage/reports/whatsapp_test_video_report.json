@@ -1,0 +1,42 @@
+{
+  "video_id": "vid_1788374981_whatsapp_test_v",
+  "filename": "whatsapp_test_video.mp4",
+  "category": "non_violent",
+  "verdict": "NON_VIOLENT_WALKING",
+  "is_violent": false,
+  "has_abnormalities": false,
+  "abnormality_summary": "Normal Pedestrians Walking: No hostile contacts, standard pedestrian walking and browsing dynamics.",
+  "abnormality_details": [],
+  "metrics": {
+    "violence_score": 0.0,
+    "walking_flow_score": 0.567,
+    "max_threat_confidence": 0.0,
+    "fighting_frames": 0,
+    "walking_frames": 17,
+    "total_frames": 480,
+    "inspected_frames": 30,
+    "duration_sec": 16.0,
+    "fps": 30.0,
+    "resolution": "320x240",
+    "avg_pedestrians": 1.4,
+    "max_pedestrians": 6
+  },
+  "stored_location": "video_storage/non_violent/whatsapp_test_video.mp4",
+  "evidence_snapshots": [
+    {
+      "frame": 0,
+      "timestamp": 0.0,
+      "path": "video_storage/reports/snapshots/whatsapp_test_video_frame0.jpg",
+      "has_violence": false,
+      "persons": 6
+    },
+    {
+      "frame": 479,
+      "timestamp": 15.97,
+      "path": "video_storage/reports/snapshots/whatsapp_test_video_frame479.jpg",
+      "has_violence": false,
+      "persons": 0
+    }
+  ],
+  "analyzed_at": "2026-09-03 00:19:41"
+}
