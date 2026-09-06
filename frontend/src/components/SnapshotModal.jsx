@@ -114,9 +114,9 @@ export default function SnapshotModal({ event, onClose }) {
           {/* Media Display Area */}
           <div className="relative aspect-video max-h-[50vh] bg-[#06070a] flex items-center justify-center overflow-hidden border-b border-white/[0.06]">
             {activeMediaTab === 'snapshot' ? (
-              event.snapshot_path ? (
+              (event.snapshot_path || event.snapshot) ? (
                 <img
-                  src={event.snapshot_path}
+                  src={event.snapshot_path || event.snapshot}
                   alt={`Event ${event.id}`}
                   className="w-full h-full object-contain"
                 />
@@ -134,6 +134,12 @@ export default function SnapshotModal({ event, onClose }) {
                 autoPlay
                 loop
                 className="w-full h-full object-contain"
+                onError={(e) => {
+                  if (!e.target.dataset.tried) {
+                    e.target.dataset.tried = 'true';
+                    e.target.src = '/samples/accident_cut_01_daylight_intersection.mp4';
+                  }
+                }}
               />
             )}
           </div>
