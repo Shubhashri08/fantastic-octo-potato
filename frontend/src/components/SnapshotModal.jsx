@@ -1,5 +1,6 @@
-import React, { useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+
 import { X, AlertCircle, ShieldAlert, CheckCircle2, MapPin, Clock } from 'lucide-react';
 
 export default function SnapshotModal({ event, onClose }) {
@@ -119,6 +120,22 @@ export default function SnapshotModal({ event, onClose }) {
                   src={event.snapshot_path}
                   alt={`Event ${event.id}`}
                   className="w-full h-full object-contain"
+                  onError={(e) => {
+                    const fbMap = {
+                      'Vehicle Collision': '/snapshots/accident_cut_01_daylight_intersection_snap.jpg',
+                      'Accident': '/snapshots/accident_cut_03_truck_swerve_sidewalk_snap.jpg',
+                      'Fighting': '/snapshots/cctv_altercation_corridor.jpg',
+                      'Fire': '/snapshots/cctv_fire_mgroad.jpg',
+                      'Smoke': '/snapshots/cctv_smoke_mgroad.jpg',
+                      'Person': '/snapshots/cctv_pedestrian_atrium.jpg',
+                      'Vehicle': '/snapshots/cctv_traffic_marinedrive.jpg'
+                    };
+                    const targetSrc = fbMap[event.event_type] || '/snapshots/accident_cut_01_daylight_intersection_snap.jpg';
+                    if (!e.target.dataset.tried) {
+                      e.target.dataset.tried = 'true';
+                      e.target.src = targetSrc;
+                    }
+                  }}
                 />
               ) : (
                 <div className="flex flex-col items-center justify-center text-[#555555] text-xs p-8">

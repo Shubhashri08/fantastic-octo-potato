@@ -11,6 +11,8 @@ import ErrorBoundary from './components/ErrorBoundary';
 import { getCameras, startDetection, stopDetection } from './api/cameras';
 import { getEvents } from './api/events';
 import { getSystemStatus } from './api/status';
+import { LOCAL_RECONSTRUCTION_EVENTS } from './data/reconstruction_dataset';
+
 
 const pageVariants = {
   initial: { opacity: 0, y: 6, scale: 0.998 },
@@ -53,7 +55,7 @@ export default function App() {
   const [identifySubTab, setIdentifySubTab] = useState(initialRoute.subTab || 'vehicle');
   const [understandSubTab, setUnderstandSubTab] = useState(initialRoute.subTab || 'map');
   const [cameras, setCameras] = useState(DEFAULT_CAMERAS);
-  const [events, setEvents] = useState([]);
+  const [events, setEvents] = useState(LOCAL_RECONSTRUCTION_EVENTS);
   const [statusData, setStatusData] = useState(null);
   const [selectedCameraId, setSelectedCameraId] = useState(null);
   const [selectedEventForModal, setSelectedEventForModal] = useState(null);
@@ -103,7 +105,9 @@ export default function App() {
       if (Array.isArray(camData) && camData.length > 0) {
         setCameras(camData);
       }
-      if (Array.isArray(evData)) setEvents(evData);
+      if (Array.isArray(evData) && evData.length > 0) {
+        setEvents(evData);
+      }
       if (statData) setStatusData(statData);
     } catch (err) {
       console.error('Error fetching telemetry:', err);

@@ -6,6 +6,8 @@ import {
   FileText, Download, Play, Compass, Flame, Car, Users, Crosshair,
   Volume2, VolumeX, Shield, Zap
 } from 'lucide-react';
+import { LOCAL_RECONSTRUCTION_EVENTS } from '../data/reconstruction_dataset';
+
 
 const MAX_ACTIVE_INCIDENTS = 9;
 
@@ -272,7 +274,8 @@ export default function RespondConsole({ events = [], cameras = [], onSelectEven
 
   // Filtered & Prioritized Actionable Incidents (Max 9 unique incidents)
   const actionableEvents = useMemo(() => {
-    const filtered = events.filter((ev) => {
+    const rawList = (events && events.length > 0) ? events : LOCAL_RECONSTRUCTION_EVENTS;
+    let filtered = rawList.filter((ev) => {
       // Strictly keep only the earlier 9 curated demo incidents (IDs 6001-6009)
       if (ev.id < 6001 || ev.id > 6009) return false;
       if (ev.snapshot_path && ev.snapshot_path.includes('incident_cam1_Fighting')) return false;
@@ -296,6 +299,11 @@ export default function RespondConsole({ events = [], cameras = [], onSelectEven
 
       return matchSeverity && matchThreat;
     });
+
+    if (filtered.length === 0 && severityFilter === 'ALL' && threatFilter === 'ALL') {
+      filtered = LOCAL_RECONSTRUCTION_EVENTS.filter((ev) => ev.id >= 6001 && ev.id <= 6009);
+    }
+
 
     filtered.sort((a, b) => {
       const weightA = SEVERITY_WEIGHT[a.severity] || 2;
@@ -745,6 +753,22 @@ export default function RespondConsole({ events = [], cameras = [], onSelectEven
                               src={activeSelected.snapshot_path}
                               alt="Incident Evidence"
                               className="w-full h-full object-contain group-hover:scale-[1.02] transition duration-300"
+                              onError={(e) => {
+                                const fbMap = {
+                                  'Vehicle Collision': '/snapshots/accident_cut_01_daylight_intersection_snap.jpg',
+                                  'Accident': '/snapshots/accident_cut_03_truck_swerve_sidewalk_snap.jpg',
+                                  'Fighting': '/snapshots/cctv_altercation_corridor.jpg',
+                                  'Fire': '/snapshots/cctv_fire_mgroad.jpg',
+                                  'Smoke': '/snapshots/cctv_smoke_mgroad.jpg',
+                                  'Person': '/snapshots/cctv_pedestrian_atrium.jpg',
+                                  'Vehicle': '/snapshots/cctv_traffic_marinedrive.jpg'
+                                };
+                                const targetSrc = fbMap[activeSelected.event_type] || '/snapshots/accident_cut_01_daylight_intersection_snap.jpg';
+                                if (!e.target.dataset.tried) {
+                                  e.target.dataset.tried = 'true';
+                                  e.target.src = targetSrc;
+                                }
+                              }}
                             />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition flex items-center justify-center gap-2 text-white text-xs font-bold">
                               <Eye className="w-4 h-4 text-[#00F2FE]" /> Click to Inspect Full Resolution Lightbox
