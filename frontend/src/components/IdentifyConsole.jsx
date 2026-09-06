@@ -19,8 +19,6 @@ import {
   searchPersonEvidence 
 } from '../api/persons';
 import { getCameras } from '../api/cameras';
-import { LOCAL_VEHICLES, searchLocalVehicles } from '../data/local_vehicle_dataset';
-
 
 export default function IdentifyConsole({ 
   events = [], 
@@ -131,63 +129,30 @@ export default function IdentifyConsole({
           return;
         }
 
-        let matches = [];
-        try {
-          const data = await searchVehicle({ 
-            plate_number: p,
-            location: plateLocation !== 'All' ? plateLocation : undefined,
-            time_range: plateTimeRange !== 'all' ? plateTimeRange : undefined
-          });
-          if (data && data.matches && data.matches.length > 0) {
-            matches = data.matches;
-          } else {
-            // Check local fallback
-            matches = searchLocalVehicles({ plate_number: p, location: plateLocation });
-          }
-        } catch (apiErr) {
-          console.warn('Backend search API unreachable, using verified local vehicle intelligence:', apiErr);
-          matches = searchLocalVehicles({ plate_number: p, location: plateLocation });
-        }
+        const data = await searchVehicle({ 
+          plate_number: p,
+          location: plateLocation !== 'All' ? plateLocation : undefined,
+          time_range: plateTimeRange !== 'all' ? plateTimeRange : undefined
+        });
 
-        if (matches && matches.length > 0) {
-          setVehicleMatches(matches);
+        if (data.matches && data.matches.length > 0) {
+          setVehicleMatches(data.matches);
           setInvestigationStatus('found');
         } else {
           setInvestigationStatus('no_match');
         }
 
       } else if (activeMode === 'description') {
-        let matches = [];
-        try {
-          const data = await searchVehicle({
-            vehicle_type: descType !== 'All' ? descType : undefined,
-            color: descColor !== 'All' ? descColor : undefined,
-            location: descLocation !== 'All' ? descLocation : undefined,
-            vehicle_model: descModel ? descModel.trim() : undefined,
-            time_range: descTimeRange !== 'all' ? descTimeRange : undefined
-          });
-          if (data && data.matches && data.matches.length > 0) {
-            matches = data.matches;
-          } else {
-            matches = searchLocalVehicles({
-              vehicle_type: descType,
-              color: descColor,
-              location: descLocation,
-              vehicle_model: descModel
-            });
-          }
-        } catch (apiErr) {
-          console.warn('Backend search API unreachable, using verified local vehicle intelligence:', apiErr);
-          matches = searchLocalVehicles({
-            vehicle_type: descType,
-            color: descColor,
-            location: descLocation,
-            vehicle_model: descModel
-          });
-        }
+        const data = await searchVehicle({
+          vehicle_type: descType !== 'All' ? descType : undefined,
+          color: descColor !== 'All' ? descColor : undefined,
+          location: descLocation !== 'All' ? descLocation : undefined,
+          vehicle_model: descModel ? descModel.trim() : undefined,
+          time_range: descTimeRange !== 'all' ? descTimeRange : undefined
+        });
 
-        if (matches && matches.length > 0) {
-          setVehicleMatches(matches);
+        if (data.matches && data.matches.length > 0) {
+          setVehicleMatches(data.matches);
           setInvestigationStatus('found');
         } else {
           setInvestigationStatus('no_match');
@@ -195,14 +160,8 @@ export default function IdentifyConsole({
       }
     } catch (err) {
       console.error('Error executing vehicle search:', err);
-      const fallbackMatches = searchLocalVehicles({ plate_number: plateInput });
-      if (fallbackMatches.length > 0) {
-        setVehicleMatches(fallbackMatches);
-        setInvestigationStatus('found');
-      } else {
-        setInvestigationError(err.message || 'Vehicle search could not complete. Please retry.');
-        setInvestigationStatus('error');
-      }
+      setInvestigationError(err.message || 'Vehicle search could not complete. Please retry.');
+      setInvestigationStatus('error');
     } finally {
       setIsSearchingVehicle(false);
     }
@@ -216,16 +175,10 @@ export default function IdentifyConsole({
     try {
       const data = await getVehicleSightings(vehicleId);
       const items = Array.isArray(data) ? data : (data.sightings || []);
-      if (items.length > 0) {
-        setMovementHistory(items);
-      } else {
-        const local = LOCAL_VEHICLES.find(v => v.vehicle_id === vehicleId);
-        setMovementHistory(local?.sightings || []);
-      }
+      setMovementHistory(items);
     } catch (err) {
-      console.warn('Backend sightings unreachable, using verified trajectory history:', err);
-      const local = LOCAL_VEHICLES.find(v => v.vehicle_id === vehicleId);
-      setMovementHistory(local?.sightings || []);
+      console.error('Error loading sightings history:', err);
+      setHistoryError('Unable to load movement trajectory history.');
     } finally {
       setIsLoadingHistory(false);
     }
@@ -238,19 +191,12 @@ export default function IdentifyConsole({
     setDbError(null);
     try {
       const data = await getVehicles(page, 25);
-      if (data && data.items && data.items.length > 0) {
-        setDbVehicles(data.items);
-        setDbTotalCount(data.total || 0);
-      } else {
-        setDbVehicles(LOCAL_VEHICLES);
-        setDbTotalCount(LOCAL_VEHICLES.length);
-      }
+      setDbVehicles(data.items || []);
+      setDbTotalCount(data.total || 0);
       setDbPage(page);
     } catch (err) {
-      console.warn('Backend database unreachable, using verified local vehicle registry:', err);
-      setDbVehicles(LOCAL_VEHICLES);
-      setDbTotalCount(LOCAL_VEHICLES.length);
-      setDbPage(1);
+      console.error('Error browsing vehicle database:', err);
+      setDbError(err.message || 'Failed to load vehicle database.');
     } finally {
       setIsDbLoading(false);
     }

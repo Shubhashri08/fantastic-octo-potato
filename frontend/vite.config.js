@@ -1,12 +1,11 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import fs from 'fs';
-import path from 'path';
 
 export default defineConfig({
   plugins: [react()],
   envDir: '../',
   server: {
+
     port: 5173,
     proxy: {
       '/api': {
@@ -19,25 +18,13 @@ export default defineConfig({
       },
       '/snapshots': {
         target: 'http://localhost:8000',
-        changeOrigin: true,
-        bypass(req) {
-          const publicFile = path.resolve(__dirname, 'public', req.url.replace(/^\//, '').split('?')[0]);
-          if (fs.existsSync(publicFile)) {
-            return req.url;
-          }
-        }
-      },
-      '/samples': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-        bypass(req) {
-          const publicFile = path.resolve(__dirname, 'public', req.url.replace(/^\//, '').split('?')[0]);
-          if (fs.existsSync(publicFile)) {
-            return req.url;
-          }
-        }
+        changeOrigin: true
       },
       '/recordings': {
+        target: 'http://localhost:8000',
+        changeOrigin: true
+      },
+      '/samples': {
         target: 'http://localhost:8000',
         changeOrigin: true
       },
