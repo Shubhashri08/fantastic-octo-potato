@@ -5,19 +5,20 @@ export const LOCAL_RECONSTRUCTION_EVENTS = [
   // 1. VEHICLE COLLISION
   {
     id: 6001,
-    camera_id: 2,
+    camera_id: 4,
     event_type: "Vehicle Collision",
-    camera_name: "CAM-02: Bengaluru MG Road Commercial Corridor",
-    location: "MG Road Commercial Corridor (Near Brigade Cross)",
+    camera_name: "CAM-04: Bengaluru Trinity Circle Transit Node",
+    location: "Trinity Circle Metro Ingress Arterial",
     city: "Bengaluru Safe City Mesh",
-    lat: 12.9756,
-    lon: 77.6067,
+    lat: 12.9725,
+    lon: 77.6200,
     severity: "Critical",
     confidence: 0.96,
     confirmation_count: 6,
     timestamp: new Date(Date.now() - 1000 * 60 * 12).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_vehicle_cam2_1.jpg"
+    snapshot_path: "/snapshots/cctv_accident_trinity.jpg",
+    video_url: "/samples/accident_real.mp4"
   },
   {
     id: 6008,
@@ -33,7 +34,8 @@ export const LOCAL_RECONSTRUCTION_EVENTS = [
     confirmation_count: 5,
     timestamp: new Date(Date.now() - 1000 * 60 * 35).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_vehicle_cam2_1.jpg"
+    snapshot_path: "/snapshots/cctv_accident_flyover.jpg",
+    video_url: "/samples/accident_real_3.mp4"
   },
   {
     id: 6015,
@@ -49,47 +51,50 @@ export const LOCAL_RECONSTRUCTION_EVENTS = [
     confirmation_count: 7,
     timestamp: new Date(Date.now() - 1000 * 60 * 55).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_vehicle_cam2_1.jpg"
+    snapshot_path: "/snapshots/cctv_accident_worli.jpg",
+    video_url: "/samples/accident_real_2.mp4"
   },
 
   // 2. FIGHTING / ALTERCATION
   {
     id: 6005,
     camera_id: 1,
-    event_type: "Fighting",
-    camera_name: "CAM-01: Mumbai CSMT Concourse Altercation",
+    event_type: "Person",
+    camera_name: "CAM-01: Mumbai CSMT Central Concourse",
     location: "CSMT Central Transit Concourse Platform 4",
     city: "Mumbai Safe City Mesh",
     lat: 18.9401,
     lon: 72.8351,
-    severity: "Critical",
-    confidence: 0.97,
-    confirmation_count: 6,
+    severity: "High",
+    confidence: 0.94,
+    confirmation_count: 5,
     timestamp: new Date(Date.now() - 1000 * 60 * 18).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_person_cam1_1.jpg"
+    snapshot_path: "/snapshots/cctv_pedestrian_atrium.jpg",
+    video_url: "/samples/mall_walking.mp4"
   },
   {
     id: 6012,
-    camera_id: 4,
+    camera_id: 6,
     event_type: "Fighting",
-    camera_name: "CAM-04: Bengaluru Trinity Circle Transit Node",
-    location: "Trinity Circle Metro Ingress Plaza",
-    city: "Bengaluru Safe City Mesh",
-    lat: 12.9725,
-    lon: 77.6200,
+    camera_name: "CAM-06: Mumbai Worli Sea Face Intercept",
+    location: "Worli Promenade Altercation Node",
+    city: "Mumbai Safe City Mesh",
+    lat: 18.9650,
+    lon: 72.8180,
     severity: "High",
     confidence: 0.92,
     confirmation_count: 5,
     timestamp: new Date(Date.now() - 1000 * 60 * 42).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_person_cam1_1.jpg"
+    snapshot_path: "/snapshots/cctv_accident_worli.jpg",
+    video_url: "/samples/fight_2.mp4"
   },
   {
     id: 6016,
     camera_id: 7,
     event_type: "Fighting",
-    camera_name: "CAM-07: Mall Concourse Platform",
+    camera_name: "CAM-07: Mall & Transit Concourse Platform",
     location: "Shopping Atrium South Escalator Corridor",
     city: "Mumbai Safe City Mesh",
     lat: 18.9350,
@@ -99,25 +104,27 @@ export const LOCAL_RECONSTRUCTION_EVENTS = [
     confirmation_count: 4,
     timestamp: new Date(Date.now() - 1000 * 60 * 64).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_person_cam1_1.jpg"
+    snapshot_path: "/snapshots/cctv_pedestrian_csmt.jpg",
+    video_url: "/samples/fight_3.mp4"
   },
 
   // 3. FIRE OUTBREAK
   {
     id: 6003,
-    camera_id: 3,
+    camera_id: 2,
     event_type: "Fire",
-    camera_name: "CAM-03: Mumbai Marine Drive Coastal Unit",
-    location: "Marine Drive Commercial Complex Sub-Station",
-    city: "Mumbai Safe City Mesh",
-    lat: 18.9438,
-    lon: 72.8233,
+    camera_name: "CAM-02: Bengaluru MG Road Commercial Corridor",
+    location: "MG Road Sub-Station Transformer Room",
+    city: "Bengaluru Safe City Mesh",
+    lat: 12.9756,
+    lon: 77.6067,
     severity: "Critical",
     confidence: 0.98,
     confirmation_count: 7,
     timestamp: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_vehicle_cam2_1.jpg"
+    snapshot_path: "/snapshots/cctv_fire_mgroad.jpg",
+    video_url: "/samples/fire_1.mp4"
   },
   {
     id: 6009,
@@ -133,41 +140,44 @@ export const LOCAL_RECONSTRUCTION_EVENTS = [
     confirmation_count: 6,
     timestamp: new Date(Date.now() - 1000 * 60 * 48).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_vehicle_cam2_1.jpg"
+    snapshot_path: "/snapshots/cctv_fire_mgroad.jpg",
+    video_url: "/samples/fire_1.mp4"
   },
   {
     id: 6017,
-    camera_id: 5,
+    camera_id: 2,
     event_type: "Fire",
-    camera_name: "CAM-05: Bengaluru Outer Ring Road Hub",
-    location: "Logistics Terminal Fuel Depot Perimeter",
+    camera_name: "CAM-02: Bengaluru MG Road Commercial Corridor",
+    location: "Commercial Perimeter Storage Bay",
     city: "Bengaluru Safe City Mesh",
-    lat: 12.9820,
-    lon: 77.6200,
+    lat: 12.9756,
+    lon: 77.6067,
     severity: "High",
     confidence: 0.93,
     confirmation_count: 5,
     timestamp: new Date(Date.now() - 1000 * 60 * 80).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_vehicle_cam2_1.jpg"
+    snapshot_path: "/snapshots/cctv_fire_mgroad.jpg",
+    video_url: "/samples/fire_1.mp4"
   },
 
   // 4. SMOKE SENSOR
   {
     id: 6007,
-    camera_id: 3,
+    camera_id: 2,
     event_type: "Smoke",
-    camera_name: "CAM-03: Mumbai Marine Drive Coastal Unit",
+    camera_name: "CAM-02: Bengaluru MG Road Commercial Corridor",
     location: "Basement Ventilation Exhaust Shaft 2",
-    city: "Mumbai Safe City Mesh",
-    lat: 18.9438,
-    lon: 72.8233,
+    city: "Bengaluru Safe City Mesh",
+    lat: 12.9756,
+    lon: 77.6067,
     severity: "Medium",
     confidence: 0.89,
     confirmation_count: 4,
     timestamp: new Date(Date.now() - 1000 * 60 * 22).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_vehicle_cam2_1.jpg"
+    snapshot_path: "/snapshots/cctv_smoke_mgroad.jpg",
+    video_url: "/samples/fire_1.mp4"
   },
   {
     id: 6010,
@@ -183,7 +193,8 @@ export const LOCAL_RECONSTRUCTION_EVENTS = [
     confirmation_count: 5,
     timestamp: new Date(Date.now() - 1000 * 60 * 50).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_vehicle_cam2_1.jpg"
+    snapshot_path: "/snapshots/cctv_smoke_mgroad.jpg",
+    video_url: "/samples/fire_1.mp4"
   },
   {
     id: 6018,
@@ -199,41 +210,44 @@ export const LOCAL_RECONSTRUCTION_EVENTS = [
     confirmation_count: 3,
     timestamp: new Date(Date.now() - 1000 * 60 * 95).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_vehicle_cam2_1.jpg"
+    snapshot_path: "/snapshots/cctv_smoke_mgroad.jpg",
+    video_url: "/samples/fire_1.mp4"
   },
 
   // 5. ACCIDENT
   {
     id: 6006,
-    camera_id: 6,
+    camera_id: 5,
     event_type: "Accident",
-    camera_name: "CAM-06: Mumbai Worli Sea Face Intercept",
-    location: "Worli Northbound U-Turn Arterial",
-    city: "Mumbai Safe City Mesh",
-    lat: 18.9650,
-    lon: 72.8180,
+    camera_name: "CAM-05: Bengaluru Outer Ring Road Hub",
+    location: "Ring Road Northbound U-Turn Arterial",
+    city: "Bengaluru Safe City Mesh",
+    lat: 12.9820,
+    lon: 77.6200,
     severity: "High",
     confidence: 0.93,
     confirmation_count: 4,
     timestamp: new Date(Date.now() - 1000 * 60 * 26).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_vehicle_cam2_1.jpg"
+    snapshot_path: "/snapshots/cctv_accident_junction.jpg",
+    video_url: "/samples/accident_real_2.mp4"
   },
   {
     id: 6011,
-    camera_id: 2,
+    camera_id: 4,
     event_type: "Accident",
-    camera_name: "CAM-02: Bengaluru MG Road Commercial Corridor",
-    location: "MG Road - Residency Road Intersection",
+    camera_name: "CAM-04: Bengaluru Trinity Circle Transit Node",
+    location: "MG Road - Trinity Circle Intersection",
     city: "Bengaluru Safe City Mesh",
-    lat: 12.9756,
-    lon: 77.6067,
+    lat: 12.9725,
+    lon: 77.6200,
     severity: "Critical",
     confidence: 0.95,
     confirmation_count: 5,
     timestamp: new Date(Date.now() - 1000 * 60 * 60).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_vehicle_cam2_1.jpg"
+    snapshot_path: "/snapshots/cctv_accident_junction.jpg",
+    video_url: "/samples/accident_real_4.mp4"
   },
   {
     id: 6019,
@@ -249,7 +263,8 @@ export const LOCAL_RECONSTRUCTION_EVENTS = [
     confirmation_count: 4,
     timestamp: new Date(Date.now() - 1000 * 60 * 110).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_vehicle_cam2_1.jpg"
+    snapshot_path: "/snapshots/cctv_accident_flyover.jpg",
+    video_url: "/samples/accident_real_3.mp4"
   },
 
   // 6. VEHICLE BOLO
@@ -267,23 +282,25 @@ export const LOCAL_RECONSTRUCTION_EVENTS = [
     confirmation_count: 4,
     timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_vehicle_cam2_1.jpg"
+    snapshot_path: "/snapshots/cctv_traffic_marinedrive.jpg",
+    video_url: "/samples/IMG_0004.mp4"
   },
   {
     id: 6013,
-    camera_id: 2,
+    camera_id: 3,
     event_type: "Vehicle",
-    camera_name: "CAM-02: Bengaluru MG Road Commercial Corridor",
-    location: "MG Road ANPR Vehicle Checkpoint 1",
-    city: "Bengaluru Safe City Mesh",
-    lat: 12.9756,
-    lon: 77.6067,
+    camera_name: "CAM-03: Mumbai Marine Drive Coastal Unit",
+    location: "Marine Drive ANPR Checkpoint",
+    city: "Mumbai Safe City Mesh",
+    lat: 18.9438,
+    lon: 72.8233,
     severity: "Critical",
     confidence: 0.97,
     confirmation_count: 6,
     timestamp: new Date(Date.now() - 1000 * 60 * 75).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_vehicle_cam2_1.jpg"
+    snapshot_path: "/snapshots/cctv_expressway_outerring.jpg",
+    video_url: "/samples/IMG_0005.mp4"
   },
   {
     id: 6020,
@@ -299,25 +316,27 @@ export const LOCAL_RECONSTRUCTION_EVENTS = [
     confirmation_count: 5,
     timestamp: new Date(Date.now() - 1000 * 60 * 125).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_vehicle_cam2_1.jpg"
+    snapshot_path: "/snapshots/cctv_coastal_worli.jpg",
+    video_url: "/samples/IMG_0006.mp4"
   },
 
   // 7. PERSON / PEDESTRIAN
   {
     id: 6002,
-    camera_id: 4,
+    camera_id: 3,
     event_type: "Person",
-    camera_name: "CAM-04: Bengaluru Trinity Circle Transit Node",
-    location: "Trinity Metro Station Escalator Lobby",
-    city: "Bengaluru Safe City Mesh",
-    lat: 12.9725,
-    lon: 77.6200,
+    camera_name: "CAM-03: Mumbai Marine Drive Promenade",
+    location: "Marine Drive Promenade Pedestrian Corridor",
+    city: "Mumbai Safe City Mesh",
+    lat: 18.9438,
+    lon: 72.8233,
     severity: "High",
     confidence: 0.91,
     confirmation_count: 4,
     timestamp: new Date(Date.now() - 1000 * 60 * 16).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_person_cam1_1.jpg"
+    snapshot_path: "/snapshots/cctv_pedestrian_atrium.jpg",
+    video_url: "/samples/mall_walking.mp4"
   },
   {
     id: 6014,
@@ -333,13 +352,14 @@ export const LOCAL_RECONSTRUCTION_EVENTS = [
     confirmation_count: 5,
     timestamp: new Date(Date.now() - 1000 * 60 * 45).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_person_cam1_1.jpg"
+    snapshot_path: "/snapshots/cctv_pedestrian_csmt.jpg",
+    video_url: "/samples/mall_walking.mp4"
   },
   {
     id: 6021,
     camera_id: 7,
     event_type: "Person",
-    camera_name: "CAM-07: Mall Concourse Ingress Turnstile",
+    camera_name: "CAM-07: Mall & Transit Concourse Ingress Turnstile",
     location: "Central Pedestrian Screening Corridor",
     city: "Mumbai Safe City Mesh",
     lat: 18.9350,
@@ -349,7 +369,8 @@ export const LOCAL_RECONSTRUCTION_EVENTS = [
     confirmation_count: 3,
     timestamp: new Date(Date.now() - 1000 * 60 * 105).toISOString(),
     status: "Active",
-    snapshot_path: "/snapshots/crop_person_cam1_1.jpg"
+    snapshot_path: "/snapshots/cctv_pedestrian_atrium.jpg",
+    video_url: "/samples/mall_walking.mp4"
   }
 ];
 

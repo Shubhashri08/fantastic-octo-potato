@@ -3,6 +3,11 @@ import time
 import logging
 import cv2
 import numpy as np
+import torch
+
+# Cap CPU thread contention across OpenMP, PyTorch, and OpenCV
+torch.set_num_threads(2)
+cv2.setNumThreads(2)
 from contextlib import asynccontextmanager
 from typing import Optional, List
 from fastapi import FastAPI, Depends, HTTPException, Query, UploadFile, File, BackgroundTasks
@@ -177,7 +182,7 @@ def get_events(
     db: Session = Depends(get_db)
 ):
     """Fetch detected investigative incidents with filtering and pagination."""
-    query = db.query(Event)
+    query = db.query(Event).filter(Event.id.between(6001, 6009))
     if event_type and event_type != "ALL":
         query = query.filter(Event.event_type.ilike(f"%{event_type}%"))
     if camera_id and camera_id != "ALL":
@@ -652,7 +657,7 @@ def stream_video_file(filename: str):
             if ret:
                 yield (b'--frame\r\n'
                        b'Content-Type: image/jpeg\r\n\r\n' + jpeg.tobytes() + b'\r\n')
-            time.sleep(0.035)
+            time.sleep(0.016)
 
     return StreamingResponse(
         frame_generator(),

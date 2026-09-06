@@ -129,3 +129,9 @@ frontend/node_modules/
 frontend/dist/
 .npm
 .eslintcache
+
+# Screen Recordings, Raw Demos & Presentation Artifacts
+*.mov
+recording.mp4
+*.pptx.pdf
+frontend/public/snapshots/incident_*.jpg

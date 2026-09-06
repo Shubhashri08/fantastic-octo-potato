@@ -44,7 +44,7 @@ export default function EventReconstruction({ events = [], cameras = [], onNavig
   // Filters for Event Dropdown
   const [filterThreat, setFilterThreat] = useState('ALL');
   const [filterCamera, setFilterCamera] = useState('ALL');
-  const [basemapStyle, setBasemapStyle] = useState('voyager');
+  const basemapStyle = 'voyager';
 
   // Combined Events: Merge Live Backend with Comprehensive Local Catalog
   const combinedEvents = useMemo(() => {
@@ -205,9 +205,11 @@ export default function EventReconstruction({ events = [], cameras = [], onNavig
   }, [basemapStyle]);
 
   // Execute Event Reconstruction Analysis
-  const handleExecuteReconstruction = async () => {
-    if (!selectedEventId) return;
-    const selectedEvent = combinedEvents.find(e => e.id === parseInt(selectedEventId, 10)) || combinedEvents[0];
+  const handleExecuteReconstruction = async (forcedEventId = null) => {
+    const targetId = forcedEventId || selectedEventId;
+    if (!targetId) return;
+    const selectedEvent = combinedEvents.find(e => e.id === parseInt(targetId, 10)) || combinedEvents[0];
+    setSelectedEventId(targetId);
 
     setAnalysisState('analyzing');
     setAnalysisError(null);
@@ -413,16 +415,7 @@ export default function EventReconstruction({ events = [], cameras = [], onNavig
               </h2>
             </div>
             <div className="flex items-center gap-2">
-              <select
-                value={basemapStyle}
-                onChange={(e) => setBasemapStyle(e.target.value)}
-                className="px-2 py-0.5 rounded bg-[#141624] border border-cyan-900/50 text-[10px] text-[#00F2FE] font-bold outline-none cursor-pointer"
-              >
-                <option value="voyager">CARTO VOYAGER</option>
-                <option value="dark">CARTO DARK</option>
-                <option value="positron">CARTO POSITRON</option>
-              </select>
-              <span className="text-[10px] text-[#9ed1c1] bg-[#142820] px-2 py-0.5 rounded border border-[#1d4f43] font-bold">
+              <span className="text-[10px] text-[#9ed1c1] bg-[#141414] px-2 py-0.5 rounded border border-[#262626] font-bold">
                 DATASET ACTIVE
               </span>
             </div>
@@ -698,12 +691,40 @@ export default function EventReconstruction({ events = [], cameras = [], onNavig
             <p className="text-[11px] text-red-300">{analysisError}</p>
           </div>
         ) : (
-          <div className="py-24 text-center space-y-3 text-xs text-[#666]">
-            <Compass className="w-10 h-10 text-[#444] mx-auto" />
-            <div className="text-sm font-bold text-[#858585]">EVENT RECONSTRUCTION READY</div>
-            <p className="text-[11px] text-[#555] max-w-xs mx-auto">
-              Select an incident from the dropdown above and click "RECONSTRUCT EVENT MOVEMENT" to model trajectory and predict next CCTV checkpoints.
+          <div className="space-y-3 font-mono">
+            <div className="flex items-center justify-between pb-2 border-b border-[#222]">
+              <span className="text-xs font-bold text-[#f5dfc0] uppercase flex items-center gap-1.5">
+                <Compass className="w-3.5 h-3.5 text-[#00F2FE]" /> Available Incidents ({filteredEvents.length})
+              </span>
+              <span className="text-[10px] text-[#858585]">1-Click Model</span>
+            </div>
+            <p className="text-[11px] text-[#858585] leading-relaxed">
+              Select any confirmed municipal incident below to project vehicle or suspect movement vectors across CCTV camera checkpoints:
             </p>
+            <div className="space-y-2 mt-2 max-h-[calc(100vh-280px)] overflow-y-auto pr-1">
+              {filteredEvents.slice(0, 8).map((ev) => (
+                <button
+                  key={ev.id}
+                  onClick={() => handleExecuteReconstruction(ev.id)}
+                  className="w-full text-left p-3 rounded-xl bg-[#131520] hover:bg-[#1C2032] border border-[#23273B] hover:border-[#00F2FE]/50 transition group space-y-1.5 shadow-sm"
+                >
+                  <div className="flex items-center justify-between">
+                    <span className="text-xs font-bold text-[#f5dfc0] group-hover:text-[#00F2FE] transition-colors">
+                      #EVT-{ev.id} · {ev.event_type}
+                    </span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-[#1D2436] text-[#9ed1c1] font-bold border border-[#2B354F]">
+                      {ev.camera_name || `CAM-0${ev.camera_id}`}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between text-[10px] text-[#858585]">
+                    <span>{ev.timestamp ? new Date(ev.timestamp).toLocaleTimeString() : 'Recorded Stream'}</span>
+                    <span className="text-cyan-300 font-bold group-hover:translate-x-0.5 transition-transform flex items-center gap-1">
+                      Model Route →
+                    </span>
+                  </div>
+                </button>
+              ))}
+            </div>
           </div>
         )}
       </div>

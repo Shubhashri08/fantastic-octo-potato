@@ -39,12 +39,12 @@ const getInitialRouteState = () => {
 };
 
 const DEFAULT_CAMERAS = [
-  { id: 1, name: "CAM-01: Mumbai CSMT Concourse Altercation", source: "samples/fight_1.mp4", source_type: "video", lat: 18.9401, lon: 72.8351, is_active: true },
-  { id: 2, name: "CAM-02: Bengaluru MG Road Commercial Corridor", source: "samples/fire_1.mp4", source_type: "video", lat: 12.9756, lon: 77.6067, is_active: true },
-  { id: 3, name: "CAM-03: Mumbai Marine Drive Coastal Unit", source: "http://10.49.119.32:8080/video", source_type: "rtsp", lat: 18.9438, lon: 72.8233, is_active: true },
-  { id: 4, name: "CAM-04: Bengaluru Trinity Circle Transit Node", source: "samples/fire_1.mp4", source_type: "video", lat: 12.9725, lon: 77.6200, is_active: true },
-  { id: 5, name: "CAM-05: Bengaluru Outer Ring Road Hub", source: "samples/fight_1.mp4", source_type: "video", lat: 12.9820, lon: 77.6200, is_active: true },
-  { id: 6, name: "CAM-06: Mumbai Worli Sea Face Intercept", source: "samples/fight_1.mp4", source_type: "video", lat: 18.9650, lon: 72.8180, is_active: true }
+  { id: 1, name: "CAM-01: Central Concourse // Corridor Altercation", source: "samples/fight_1.mp4", source_type: "video", lat: 18.9401, lon: 72.8351, is_active: true },
+  { id: 2, name: "CAM-02: Bengaluru MG Road Commercial Corridor", source: "samples/accident_cut_01_daylight_intersection.mp4", source_type: "video", lat: 12.9756, lon: 77.6067, is_active: true },
+  { id: 3, name: "CAM-03: Innovation Lab // Workspace Terminal", source: "samples/IMG_0006.mp4", source_type: "video", lat: 18.9438, lon: 72.8233, is_active: true },
+  { id: 4, name: "CAM-04: Bengaluru Trinity Circle Transit Node", source: "samples/accident_cut_04_highway_night_rear_end.mp4", source_type: "video", lat: 12.9725, lon: 77.6200, is_active: true },
+  { id: 5, name: "CAM-05: Bengaluru Outer Ring Road Hub", source: "samples/accident_cut_03_truck_swerve_sidewalk.mp4", source_type: "video", lat: 12.9820, lon: 77.6200, is_active: true },
+  { id: 6, name: "CAM-06: Mumbai Worli Sea Face Intercept", source: "samples/accident_cut_02_night_junction_tbone.mp4", source_type: "video", lat: 18.9650, lon: 72.8180, is_active: true }
 ];
 
 export default function App() {

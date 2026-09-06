@@ -61,7 +61,7 @@ export default function CameraMap({ cameras, events, selectedCameraId, onSelectC
   const [selectedCity, setSelectedCity] = useState('Mumbai');
   const [cityNodes, setCityNodes] = useState(PARSED_CITIES.Mumbai);
   const [activeNode, setActiveNode] = useState(PARSED_CITIES.Mumbai[0] || null);
-  const [basemapStyle, setBasemapStyle] = useState('voyager');
+  const basemapStyle = 'voyager';
 
   // Video & Search Controls
   const [playbackMode, setPlaybackMode] = useState('stream'); // 'stream' (MJPEG) | 'video' (Direct MP4)
@@ -287,7 +287,7 @@ export default function CameraMap({ cameras, events, selectedCameraId, onSelectC
         <div ref={mapContainerRef} className="w-full h-full" style={{ minHeight: '100%' }} />
         
         {/* Floating Top Left Control HUD (City Selector & CARTO Dark Cyber Layer) */}
-        <div className="absolute top-4 left-4 z-[400] flex flex-wrap items-center gap-3 bg-[#0d0e14]/95 border border-white/[0.1] px-4 py-2.5 backdrop-blur-md rounded-xl shadow-2xl">
+        <div className="absolute top-4 left-4 z-[400] flex flex-wrap items-center gap-3 bg-[#111111]/95 border border-[#2A2A2A] px-4 py-2.5 backdrop-blur-md rounded-xl shadow-2xl font-mono">
           <div className="flex items-center gap-2">
             <Navigation className="w-4 h-4 text-[#f5dfc0]" />
             <span className="text-xs font-bold text-[#f5dfc0] uppercase tracking-wider">
@@ -296,34 +296,20 @@ export default function CameraMap({ cameras, events, selectedCameraId, onSelectC
           </div>
 
           {/* 2-City Selector */}
-          <div className="flex items-center gap-2 border-l border-white/[0.08] pl-3">
+          <div className="flex items-center gap-2 border-l border-[#262626] pl-3">
             <span className="text-[11px] text-[#858585]">CITY:</span>
             <select
               value={selectedCity}
               onChange={(e) => handleCityChange(e.target.value)}
-              className="px-3 py-1.5 rounded-lg bg-[#141620] border border-white/[0.15] text-xs text-[#f5dfc0] font-bold outline-none cursor-pointer hover:border-cyan-400/50 transition"
+              className="px-3 py-1.5 rounded-lg bg-[#181818] border border-[#2E2E2E] text-xs text-[#f5dfc0] font-bold outline-none cursor-pointer hover:border-[#444] transition"
             >
               <option value="Mumbai">Mumbai ({PARSED_CITIES.Mumbai.length} Verified CCTV Nodes)</option>
               <option value="Bengaluru">Bengaluru ({PARSED_CITIES.Bengaluru.length} OpenCity Nodes)</option>
             </select>
           </div>
 
-          {/* Basemap Style Selector */}
-          <div className="flex items-center gap-2 border-l border-white/[0.08] pl-3">
-            <Globe className="w-3.5 h-3.5 text-cyan-400" />
-            <select
-              value={basemapStyle}
-              onChange={(e) => setBasemapStyle(e.target.value)}
-              className="px-2.5 py-1.5 rounded-lg bg-[#141624] border border-cyan-900/50 text-[11px] text-[#00F2FE] font-bold outline-none cursor-pointer hover:border-cyan-400 transition"
-            >
-              <option value="voyager">CARTO VOYAGER (DAY)</option>
-              <option value="dark">CARTO DARK CYBER</option>
-              <option value="positron">CARTO POSITRON</option>
-            </select>
-          </div>
-
-          <span className="text-[10px] px-2 py-0.5 bg-[#142820] text-[#9ed1c1] border border-[#1d4f43] rounded font-bold flex items-center gap-1.5">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          <span className="text-[10px] px-2 py-0.5 bg-[#141414] text-[#9ed1c1] border border-[#262626] rounded font-bold flex items-center gap-1.5">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#9ed1c1] animate-pulse"></span>
             <span>{cityNodes.length} PINS ACTIVE</span>
           </span>
         </div>

@@ -15,7 +15,6 @@ import {
 } from '../api/vehicles';
 import { 
   getVideoEvidenceSources, 
-  uploadVideoEvidence, 
   deleteVideoEvidence, 
   searchPersonEvidence 
 } from '../api/persons';
@@ -277,13 +276,6 @@ export default function IdentifyConsole({
   const [videoSources, setVideoSources] = useState([]);
   const [isVideoSourcesLoading, setIsVideoSourcesLoading] = useState(false);
   const [isSourceDrawerOpen, setIsSourceDrawerOpen] = useState(false);
-  const [isUploadVideoModalOpen, setIsUploadVideoModalOpen] = useState(false);
-  const [uploadVideoFile, setUploadVideoFile] = useState(null);
-  const [uploadSourceName, setUploadSourceName] = useState('');
-  const [uploadLocation, setUploadLocation] = useState('');
-  const [isUploadingVideo, setIsUploadingVideo] = useState(false);
-  const [uploadProgressText, setUploadProgressText] = useState('');
-  const [videoUploadError, setVideoUploadError] = useState(null);
 
   const [uploadedImage, setUploadedImage] = useState(null);
   const [imagePreview, setImagePreview] = useState(null);
@@ -297,7 +289,6 @@ export default function IdentifyConsole({
   const [personSearchError, setPersonSearchError] = useState(null);
   const [selectedPersonForModal, setSelectedPersonForModal] = useState(null);
   const fileInputRef = useRef(null);
-  const videoFileInputRef = useRef(null);
 
   // Load Video Evidence Sources
   const loadVideoSources = async () => {
@@ -387,59 +378,6 @@ export default function IdentifyConsole({
       setPersonSearchStatus('error');
     } finally {
       setIsSearchingPerson(false);
-    }
-  };
-
-  const handleUploadVideoEvidence = async (e) => {
-    e.preventDefault();
-    if (!uploadVideoFile) return;
-
-    setIsUploadingVideo(true);
-    setVideoUploadError(null);
-    setUploadProgressText('Uploading video evidence file...');
-
-    try {
-      const uploadRes = await uploadVideoEvidence(
-        uploadVideoFile, 
-        uploadSourceName, 
-        'CAM-01', 
-        uploadLocation
-      );
-      
-      const sourceId = uploadRes.video?.source_id;
-      setUploadProgressText(`Indexing video [${sourceId}] (YOLO11 Detection + ByteTrack + TransReID)...`);
-
-      // Poll until ready or failed
-      let isReady = false;
-      let attempts = 0;
-      while (!isReady && attempts < 60) {
-        await new Promise(r => setTimeout(r, 2000));
-        attempts++;
-        const currentSources = await getVideoEvidenceSources();
-        setVideoSources(currentSources || []);
-        const target = currentSources.find(s => s.source_id === sourceId);
-        if (target) {
-          if (target.status === 'ready') {
-            isReady = true;
-            break;
-          } else if (target.status === 'failed') {
-            throw new Error(target.error_message || 'Video processing failed.');
-          }
-        }
-      }
-
-      await loadVideoSources();
-      setIsUploadVideoModalOpen(false);
-      setUploadVideoFile(null);
-      setUploadSourceName('');
-      setUploadLocation('');
-      setFlagToast({ type: 'success', message: `Video evidence [${sourceId}] indexed into Person Finder gallery.` });
-    } catch (err) {
-      console.error('Error uploading video evidence:', err);
-      setVideoUploadError(err.message || 'Failed to process video evidence.');
-    } finally {
-      setIsUploadingVideo(false);
-      setUploadProgressText('');
     }
   };
 
@@ -1063,111 +1001,27 @@ export default function IdentifyConsole({
         {activeSubTab === 'person' && (
           <div className="max-w-7xl mx-auto space-y-6">
             
-            {/* Top Toolbar: Video Evidence Sources Drawer / Manager */}
-            <div className="bg-[#111111] border border-[#262626] rounded-2xl p-5 shadow-xl space-y-4 font-mono">
-              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#222] pb-3">
-                <div className="flex items-center gap-2.5">
-                  <Video className="w-5 h-5 text-[#00F2FE]" />
-                  <div>
-                    <h3 className="text-xs font-bold text-[#f5dfc0] uppercase tracking-wider">
-                      CCTV & Video Evidence Sources ({videoSources.length} Active Feeds)
-                    </h3>
-                    <p className="text-[10px] text-[#858585]">
-                      Videos processed into track clusters & 128-D appearance embeddings
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2.5">
-                  <button
-                    onClick={() => setIsSourceDrawerOpen(!isSourceDrawerOpen)}
-                    className="px-3 py-1.5 rounded-xl bg-[#1a1a1a] hover:bg-[#252525] text-xs text-[#cfc5b9] border border-[#333] transition flex items-center gap-1.5"
-                  >
-                    <Layers className="w-3.5 h-3.5" />
-                    {isSourceDrawerOpen ? 'Hide Sources' : 'Manage Sources'}
-                  </button>
-
-                  <button
-                    onClick={() => setIsUploadVideoModalOpen(true)}
-                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-[#f5dfc0] to-[#00F2FE] text-[#0A0A0A] font-black text-xs uppercase tracking-wider transition hover:opacity-95 shadow flex items-center gap-1.5"
-                  >
-                    <Upload className="w-3.5 h-3.5" />
-                    + Add Video Evidence
-                  </button>
-                </div>
-              </div>
-
-              {/* Collapsible Source List */}
-              {isSourceDrawerOpen && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="space-y-3 pt-1"
-                >
-                  {videoSources.length === 0 ? (
-                    <div className="p-4 bg-[#0a0a0a] rounded-xl border border-[#222] text-center text-xs text-[#666]">
-                      No video evidence processed yet. Click "+ Add Video Evidence" to upload CCTV footage files.
-                    </div>
-                  ) : (
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                      {videoSources.map((v) => (
-                        <div
-                          key={v.source_id}
-                          className="p-3.5 bg-[#0d0d0d] border border-[#222] rounded-xl space-y-2 text-xs flex flex-col justify-between"
-                        >
-                          <div className="flex items-center justify-between">
-                            <span className="font-bold text-[#f5dfc0] flex items-center gap-1.5">
-                              <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                              {v.source_id}
-                            </span>
-                            <span className="px-2 py-0.5 rounded bg-[#1c1c1c] text-cyan-300 text-[10px] font-bold border border-[#333]">
-                              {v.track_count} Tracks ({v.sighting_count} Sightings)
-                            </span>
-                          </div>
-
-                          <div className="text-[11px] text-[#ccc] font-medium truncate">
-                            {v.source_name}
-                          </div>
-
-                          <div className="flex items-center justify-between text-[10px] text-[#777] pt-1 border-t border-[#1a1a1a]">
-                            <span>{v.location}</span>
-                            <span>{Math.round(v.duration_sec)}s @ {v.fps} FPS</span>
-                            <button
-                              onClick={() => handleDeleteVideo(v.source_id)}
-                              className="text-red-400 hover:text-red-300 underline"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </motion.div>
-              )}
-            </div>
-
-            {/* MISSING PERSON SEARCH QUERY CARD */}
-            <div className="bg-[#141414] border border-[#262626] rounded-2xl p-6 shadow-2xl space-y-5 font-mono">
-              <div className="border-b border-[#222] pb-4">
-                <div className="flex items-center gap-2">
-                  <User className="w-5 h-5 text-[#f5dfc0]" />
-                  <h2 className="text-base uppercase tracking-wider text-[#f5dfc0] font-black">
-                    MISSING PERSON RE-IDENTIFICATION & VIDEO EVIDENCE SEARCH
+            {/* MINIMAL PERSON SEARCH QUERY CARD */}
+            <div className="bg-[#141414] border border-[#262626] rounded-2xl p-5 shadow-2xl space-y-4 font-mono">
+              <div className="border-b border-[#222] pb-3">
+                <div>
+                  <h2 className="text-xs font-bold uppercase tracking-wider text-[#f5dfc0] font-mono flex items-center gap-2">
+                    <User className="w-4 h-4 text-[#f5dfc0]" />
+                    Person Re-Identification & Biometric Search
                   </h2>
+                  <p className="text-[11px] text-[#858585] mt-0.5">
+                    Scan indexed CCTV feeds for visual appearance and clothing matches
+                  </p>
                 </div>
-                <p className="text-xs text-[#858585] mt-1">
-                  Search uploaded CCTV/video evidence for visually similar person sightings across camera corridors.
-                </p>
               </div>
 
-              {/* Upload Dropzone */}
+              {/* Compact Drag-and-Drop / Upload Zone */}
               <div
                 onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                 onDragLeave={() => setIsDragging(false)}
                 onDrop={handlePersonDrop}
                 onClick={() => fileInputRef.current?.click()}
-                className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition ${
+                className={`border border-dashed rounded-xl p-4 text-center cursor-pointer transition ${
                   isDragging ? 'border-[#00F2FE] bg-cyan-950/20' : 'border-[#333] hover:border-[#f5dfc0] bg-[#0a0a0a]'
                 }`}
               >
@@ -1180,50 +1034,29 @@ export default function IdentifyConsole({
                 />
                 {imagePreview ? (
                   <div className="flex items-center justify-center gap-4">
-                    <img src={imagePreview} alt="Reference Person" className="w-20 h-24 object-cover rounded-lg border border-cyan-400" />
+                    <img src={imagePreview} alt="Reference Person" className="w-14 h-18 object-cover rounded-lg border border-[#00F2FE]" />
                     <div className="text-left">
-                      <div className="text-xs font-bold text-[#f5dfc0]">MISSING PERSON REFERENCE PHOTO LOADED</div>
-                      <div className="text-[11px] text-[#858585]">Click to select a different reference photograph</div>
+                      <div className="text-xs font-bold text-[#f5dfc0]">REFERENCE PHOTO ATTACHED</div>
+                      <div className="text-[10px] text-[#858585]">Click or drop a new file to replace</div>
                     </div>
                   </div>
                 ) : (
-                  <div className="space-y-2">
-                    <Upload className="w-8 h-8 text-[#858585] mx-auto" />
-                    <div className="text-xs font-bold text-[#e5e2e1]">Click to Browse or Drag Reference Photo Here</div>
-                    <div className="text-[10px] text-[#737373]">Extracts 512-D Deep OSNet Appearance Embedding & searches indexed CCTV footage</div>
+                  <div className="flex items-center justify-center gap-3 py-2">
+                    <Upload className="w-5 h-5 text-[#858585]" />
+                    <div className="text-left">
+                      <div className="text-xs font-bold text-[#e5e2e1]">Drop reference photo here or browse</div>
+                      <div className="text-[10px] text-[#737373]">Extracts OSNet appearance embedding across active CCTV nodes</div>
+                    </div>
                   </div>
                 )}
               </div>
 
-              {/* Search Controls Toolbar */}
-              <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
-                <div className="flex flex-wrap items-center gap-4 text-xs">
-                  {/* Dynamic Video Evidence Source Filter */}
-                  <div>
-                    <label className="text-[10px] text-[#858585] block mb-1 uppercase">Search Source Filter</label>
-                    <select
-                      value={selectedSourceFilter}
-                      onChange={(e) => {
-                        setSelectedSourceFilter(e.target.value);
-                        setPersonSearchResults([]);
-                        setPersonSearchStatus('idle');
-                      }}
-                      className="px-3 py-1.5 rounded-lg bg-[#0a0a0a] border border-[#333] text-[#e5e2e1] outline-none focus:border-[#00F2FE]"
-                    >
-                      <option value="ALL">All Video Evidence Sources</option>
-                      {videoSources.map((vs) => (
-                        <option key={vs.source_id} value={vs.source_id}>
-                          {vs.source_id}: {vs.source_name} ({vs.track_count} Tracks)
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  {/* Minimum Similarity Slider */}
-                  <div>
-                    <label className="text-[10px] text-[#858585] block mb-1 uppercase">
-                      Min Match Score: {Math.round(minSimilarity * 100)}%
-                    </label>
+              {/* Minimal Search Toolbar */}
+              <div className="flex flex-wrap items-center justify-between gap-3 pt-1">
+                <div className="flex items-center gap-4 text-xs">
+                  <div className="flex items-center gap-2">
+                    <label className="text-[11px] text-[#858585]">Min Match:</label>
+                    <span className="text-xs font-bold text-[#00F2FE] font-mono">{Math.round(minSimilarity * 100)}%</span>
                     <input
                       type="range"
                       min="0.10"
@@ -1235,25 +1068,47 @@ export default function IdentifyConsole({
                         setPersonSearchResults([]);
                         setPersonSearchStatus('idle');
                       }}
-                      className="w-32 accent-[#00F2FE] cursor-pointer"
+                      className="w-24 accent-[#00F2FE] cursor-pointer"
                     />
                   </div>
+
+                  {videoSources.length > 0 && (
+                    <div className="flex items-center gap-2">
+                      <label className="text-[11px] text-[#858585]">Source:</label>
+                      <select
+                        value={selectedSourceFilter}
+                        onChange={(e) => {
+                          setSelectedSourceFilter(e.target.value);
+                          setPersonSearchResults([]);
+                          setPersonSearchStatus('idle');
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-[#0a0a0a] border border-[#333] text-xs text-[#e5e2e1] outline-none focus:border-[#00F2FE]"
+                      >
+                        <option value="ALL">All Feeds ({videoSources.length})</option>
+                        {videoSources.map((vs) => (
+                          <option key={vs.source_id} value={vs.source_id}>
+                            {vs.source_name || vs.source_id}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                  )}
                 </div>
 
                 <button
                   onClick={handlePersonSearch}
                   disabled={!uploadedImage || isSearchingPerson}
-                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#f5dfc0] to-[#00F2FE] hover:opacity-95 text-black font-black text-xs uppercase tracking-wider transition flex items-center gap-2 disabled:opacity-50 shadow-lg"
+                  className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#f5dfc0] to-[#00F2FE] hover:opacity-95 text-black font-black text-xs uppercase tracking-wider transition flex items-center gap-2 disabled:opacity-50 shadow"
                 >
                   {isSearchingPerson ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      SEARCHING VIDEO EVIDENCE...
+                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
+                      Searching Feeds...
                     </>
                   ) : (
                     <>
-                      <Search className="w-4 h-4" />
-                      SEARCH VIDEO EVIDENCE
+                      <Search className="w-3.5 h-3.5" />
+                      Search Person Evidence
                     </>
                   )}
                 </button>
@@ -1373,26 +1228,26 @@ export default function IdentifyConsole({
 
             {/* No Match State */}
             {personSearchStatus === 'no_match' && (
-              <div className="bg-[#141414] border border-[#262626] rounded-2xl p-10 text-center space-y-3 font-mono">
-                <AlertCircle className="w-8 h-8 text-yellow-400 mx-auto" />
-                <h3 className="text-sm uppercase text-[#f5dfc0] font-bold">
-                  NO MATCH FOUND
+              <div className="bg-[#141414] border border-[#262626] rounded-2xl p-8 text-center space-y-2 font-mono">
+                <AlertCircle className="w-7 h-7 text-yellow-400 mx-auto" />
+                <h3 className="text-xs uppercase text-[#f5dfc0] font-bold">
+                  No Match Found
                 </h3>
-                <p className="text-xs text-[#858585] max-w-md mx-auto">
-                  No candidate person sighting in the selected video evidence exceeded the similarity threshold (&ge; {Math.round(minSimilarity * 100)}%). Try lowering the threshold or uploading additional video footage.
+                <p className="text-[11px] text-[#858585] max-w-sm mx-auto">
+                  No candidate person sighting exceeded the similarity threshold (&ge; {Math.round(minSimilarity * 100)}%).
                 </p>
               </div>
             )}
 
             {/* Empty Initial State */}
             {personSearchStatus === 'idle' && (
-              <div className="bg-[#141414] border border-[#262626] rounded-2xl p-10 text-center space-y-3 font-mono">
-                <User className="w-10 h-10 text-[#444] mx-auto" />
-                <h3 className="text-sm uppercase text-[#858585] font-bold">
-                  PERSON IDENTIFICATION READY
+              <div className="bg-[#141414] border border-[#262626] rounded-2xl p-8 text-center space-y-2 font-mono">
+                <User className="w-8 h-8 text-[#444] mx-auto" />
+                <h3 className="text-xs uppercase text-[#858585] font-bold">
+                  Person Biometric Search Ready
                 </h3>
-                <p className="text-xs text-[#555] max-w-md mx-auto">
-                  Upload a missing-person reference photo and click "SEARCH VIDEO EVIDENCE" to identify matching individuals across CCTV footage.
+                <p className="text-[11px] text-[#666] max-w-sm mx-auto">
+                  Upload a reference photograph above to match sightings across indexed CCTV footage.
                 </p>
               </div>
             )}
@@ -1448,6 +1303,12 @@ export default function IdentifyConsole({
                       src={selectedVehicleForModal.latest_sighting?.evidence_image || selectedVehicleForModal.snapshot}
                       alt="Vehicle Evidence"
                       className="w-full h-full object-contain"
+                      onError={(e) => {
+                        const cur = e.target.src;
+                        if (cur.includes('/snapshots/')) {
+                          e.target.src = cur.replace('/snapshots/', '/samples/');
+                        }
+                      }}
                     />
                   ) : (
                     <div className="text-center p-6 text-xs text-[#666]">
@@ -1728,135 +1589,6 @@ export default function IdentifyConsole({
                   Dismiss Profile
                 </button>
               </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
-
-      {/* ========================================================================= */}
-      {/* 4B. UPLOAD CCTV / VIDEO EVIDENCE MODAL                                    */}
-      {/* ========================================================================= */}
-      <AnimatePresence>
-        {isUploadVideoModalOpen && (
-          <div
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md font-mono"
-            onClick={() => !isUploadingVideo && setIsUploadVideoModalOpen(false)}
-          >
-            <motion.div
-              initial={{ scale: 0.95, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.95, opacity: 0 }}
-              className="bg-[#141414] border border-[#2a2a2a] rounded-2xl p-6 max-w-lg w-full shadow-2xl space-y-4 text-[#e5e2e1]"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div className="flex items-center justify-between border-b border-[#222] pb-3">
-                <div className="flex items-center gap-2">
-                  <Video className="w-5 h-5 text-[#00F2FE]" />
-                  <h3 className="text-sm font-bold text-[#f5dfc0] uppercase">
-                    Add CCTV / Video Evidence
-                  </h3>
-                </div>
-                {!isUploadingVideo && (
-                  <button onClick={() => setIsUploadVideoModalOpen(false)} className="text-[#858585] hover:text-white">
-                    <X className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
-
-              <form onSubmit={handleUploadVideoEvidence} className="space-y-4 text-xs">
-                {/* File Dropzone */}
-                <div
-                  onClick={() => !isUploadingVideo && videoFileInputRef.current?.click()}
-                  className="p-6 border-2 border-dashed border-[#333] hover:border-[#00F2FE] rounded-xl text-center cursor-pointer bg-[#0a0a0a]"
-                >
-                  <input
-                    ref={videoFileInputRef}
-                    type="file"
-                    accept="video/mp4,video/avi,video/quicktime,video/x-matroska,video/webm,.mp4,.avi,.mov,.mkv,.webm"
-                    onChange={(e) => setUploadVideoFile(e.target.files[0] || null)}
-                    className="hidden"
-                  />
-                  {uploadVideoFile ? (
-                    <div className="space-y-1">
-                      <CheckCircle2 className="w-6 h-6 text-emerald-400 mx-auto" />
-                      <div className="font-bold text-[#f5dfc0]">{uploadVideoFile.name}</div>
-                      <div className="text-[10px] text-[#858585]">
-                        {(uploadVideoFile.size / (1024 * 1024)).toFixed(2)} MB • Ready for ingestion
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="space-y-1">
-                      <Upload className="w-6 h-6 text-[#777] mx-auto" />
-                      <div className="font-bold text-[#e5e2e1]">Click to Select Video File</div>
-                      <div className="text-[10px] text-[#666]">Supports MP4, AVI, MOV, MKV, WEBM</div>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-[#858585] uppercase block mb-1">
-                    Feed / Camera Name (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={uploadSourceName}
-                    onChange={(e) => setUploadSourceName(e.target.value)}
-                    placeholder="e.g. CCTV Terminal Entrance Gate 4"
-                    disabled={isUploadingVideo}
-                    className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#333] text-xs text-[#f5dfc0] outline-none"
-                  />
-                </div>
-
-                <div>
-                  <label className="text-[10px] text-[#858585] uppercase block mb-1">
-                    Location Description (Optional)
-                  </label>
-                  <input
-                    type="text"
-                    value={uploadLocation}
-                    onChange={(e) => setUploadLocation(e.target.value)}
-                    placeholder="e.g. Commercial Corridor East"
-                    disabled={isUploadingVideo}
-                    className="w-full px-3 py-2 rounded-lg bg-[#0a0a0a] border border-[#333] text-xs text-[#e5e2e1] outline-none"
-                  />
-                </div>
-
-                {videoUploadError && (
-                  <div className="p-3 bg-red-950/40 border border-red-800 rounded-lg text-red-200 text-xs">
-                    {videoUploadError}
-                  </div>
-                )}
-
-                {isUploadingVideo && (
-                  <div className="p-3 bg-[#1c1c1c] border border-cyan-800 rounded-xl space-y-2">
-                    <div className="flex items-center gap-2 text-cyan-300 font-bold text-xs">
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      <span>{uploadProgressText}</span>
-                    </div>
-                    <div className="w-full bg-[#111] h-1.5 rounded-full overflow-hidden">
-                      <div className="bg-gradient-to-r from-cyan-400 to-emerald-400 h-full w-3/4 animate-pulse rounded-full" />
-                    </div>
-                  </div>
-                )}
-
-                <div className="flex justify-end gap-3 pt-2">
-                  <button
-                    type="button"
-                    onClick={() => setIsUploadVideoModalOpen(false)}
-                    disabled={isUploadingVideo}
-                    className="px-4 py-2 rounded-xl bg-[#222] hover:bg-[#333] text-xs text-[#858585]"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={!uploadVideoFile || isUploadingVideo}
-                    className="px-5 py-2 rounded-xl bg-gradient-to-r from-[#f5dfc0] to-[#00F2FE] hover:opacity-95 text-black font-black text-xs uppercase tracking-wider disabled:opacity-50 flex items-center gap-1.5 shadow"
-                  >
-                    {isUploadingVideo ? 'PROCESSING...' : 'PROCESS VIDEO EVIDENCE'}
-                  </button>
-                </div>
-              </form>
             </motion.div>
           </div>
         )}

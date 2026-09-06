@@ -376,7 +376,8 @@ class VehicleIntelligenceEngine:
     def process_frame(
         self, 
         frame: np.ndarray, 
-        camera_id: str = "1"
+        camera_id: str = "1",
+        precomputed_boxes: Optional[List[List[float]]] = None
     ) -> Tuple[List[Dict[str, Any]], np.ndarray]:
         """
         Processes a CCTV video frame through the vehicle intelligence pipeline.
@@ -392,23 +393,26 @@ class VehicleIntelligenceEngine:
         results_list: List[Dict[str, Any]] = []
 
         try:
-            # 1. Run Ultralytics YOLO Vehicle Detection
-            # classes: 2=Car, 3=Motorcycle, 5=Bus, 7=Truck
-            yolo_results = self.detector.predict(
-                source=frame,
-                classes=[2, 3, 5, 7],
-                conf=0.28,
-                imgsz=416,
-                verbose=False
-            )
+            # 1. Run Ultralytics YOLO Vehicle Detection (or use precomputed unified detections)
+            if precomputed_boxes is not None:
+                detections_list = precomputed_boxes
+            else:
+                # classes: 2=Car, 3=Motorcycle, 5=Bus, 7=Truck
+                yolo_results = self.detector.predict(
+                    source=frame,
+                    classes=[2, 3, 5, 7],
+                    conf=0.28,
+                    imgsz=416,
+                    verbose=False
+                )
 
-            detections_list = []
-            if yolo_results and yolo_results[0].boxes:
-                for box in yolo_results[0].boxes:
-                    xyxy = box.xyxy[0].tolist()
-                    conf = float(box.conf[0].item())
-                    cls_id = int(box.cls[0].item())
-                    detections_list.append([xyxy[0], xyxy[1], xyxy[2], xyxy[3], conf, cls_id])
+                detections_list = []
+                if yolo_results and yolo_results[0].boxes:
+                    for box in yolo_results[0].boxes:
+                        xyxy = box.xyxy[0].tolist()
+                        conf = float(box.conf[0].item())
+                        cls_id = int(box.cls[0].item())
+                        detections_list.append([xyxy[0], xyxy[1], xyxy[2], xyxy[3], conf, cls_id])
 
             det_array = np.array(detections_list, dtype=np.float32) if detections_list else np.empty((0, 6), dtype=np.float32)
 
@@ -462,6 +466,17 @@ class VehicleIntelligenceEngine:
                         plate_crop, plate_box, plate_conf = plate_detection
                         plate_number, ocr_conf = self.plate_recognizer.recognize_text(plate_crop)
 
+                # Calculate velocity from previous track position for real-time motion projection
+                now_ts = time.time()
+                vx = 0.0
+                vy = 0.0
+                if cached and "bbox" in cached and "last_seen" in cached:
+                    prev_bbox = cached["bbox"]
+                    dt_v = now_ts - cached["last_seen"]
+                    if 0.03 < dt_v < 1.5:
+                        vx = float(np.clip((x1 - prev_bbox[0]) / dt_v, -400.0, 400.0))
+                        vy = float(np.clip((y1 - prev_bbox[1]) / dt_v, -400.0, 400.0))
+
                 # Update Track Memory
                 self.track_memory[track_key] = {
                     "vehicle_id": vehicle_id,
@@ -471,10 +486,12 @@ class VehicleIntelligenceEngine:
                     "vehicle_confidence": veh_conf,
                     "plate_confidence": plate_conf,
                     "ocr_confidence": ocr_conf,
-
                     "camera_id": str(camera_id),
                     "timestamp": current_time_str,
-                    "last_seen": time.time()
+                    "last_seen": now_ts,
+                    "bbox": [x1, y1, x2, y2],
+                    "vx": vx,
+                    "vy": vy
                 }
 
                 # 4. Final Unified Structured Metadata Output
@@ -488,33 +505,18 @@ class VehicleIntelligenceEngine:
                     "ocr_confidence": ocr_conf,
                     "camera_id": str(camera_id),
                     "timestamp": current_time_str,
-                    "bbox": [x1, y1, x2, y2]
+                    "bbox": [x1, y1, x2, y2],
+                    "vx": vx,
+                    "vy": vy,
+                    "time": now_ts
                 }
                 results_list.append(vehicle_record)
 
-                # 5. Draw Unified Vehicle Bounding Box & HUD Label
-                # Border color: High-contrast Electric Amber / Cyan
-                cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (3, 183, 255), 2)
-
-                # Top badge label with unified vehicle attributes
-                badge_title = f"{vehicle_id} | {vehicle_type.upper()} ({vehicle_color.capitalize()})"
-                badge_plate = f"PLATE: {plate_number if plate_number else 'SCANNING'}"
-
-                (tw, th), _ = cv2.getTextSize(badge_title, cv2.FONT_HERSHEY_SIMPLEX, 0.42, 1)
-                (pw, ph), _ = cv2.getTextSize(badge_plate, cv2.FONT_HERSHEY_SIMPLEX, 0.38, 1)
-                badge_w = max(tw, pw) + 8
-                badge_h = th + ph + 12
-
-                # Badge background
-                cv2.rectangle(annotated_frame, (x1, max(0, y1 - badge_h)), (x1 + badge_w, y1), (12, 14, 20), -1)
-                cv2.rectangle(annotated_frame, (x1, max(0, y1 - badge_h)), (x1 + badge_w, y1), (3, 183, 255), 1)
-
-                # Text lines
-                cv2.putText(annotated_frame, badge_title, (x1 + 4, max(12, y1 - ph - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (0, 242, 254), 1, cv2.LINE_AA)
-                cv2.putText(annotated_frame, badge_plate, (x1 + 4, max(24, y1 - 4)), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (245, 223, 192), 1, cv2.LINE_AA)
-
         except Exception as err:
             logger.error(f"Vehicle Intelligence Pipeline error: {err}")
+
+        # 5. Draw Unified Vehicle Bounding Box & HUD Label
+        self.draw_vehicle_annotations(annotated_frame, results_list)
 
         # Clean stale tracks from memory older than 30 seconds
         now = time.time()
@@ -523,6 +525,65 @@ class VehicleIntelligenceEngine:
             del self.track_memory[vid]
 
         return results_list, annotated_frame
+
+    @staticmethod
+    def draw_vehicle_annotations(frame: np.ndarray, vehicle_records: List[Dict[str, Any]], current_time: float = None) -> np.ndarray:
+        """Paints vehicle bounding boxes, license plates, color tags and attributes onto frame in <0.5ms with real-time motion projection."""
+        if not vehicle_records or frame is None:
+            return frame
+
+        fh, fw = frame.shape[:2]
+        now_ts = current_time or time.time()
+
+        for rec in vehicle_records:
+            bbox = rec.get("bbox")
+            if not bbox or len(bbox) != 4:
+                continue
+            x1, y1, x2, y2 = bbox
+            vx = rec.get("vx", 0.0)
+            vy = rec.get("vy", 0.0)
+            rec_time = rec.get("time", now_ts)
+            dt = min(0.8, max(0.0, now_ts - rec_time))
+
+            # Apply velocity motion projection so box is locked onto vehicle
+            bw = x2 - x1
+            bh = y2 - y1
+            px1 = int(x1 + vx * dt)
+            py1 = int(y1 + vy * dt)
+            px1 = max(0, min(fw - bw, px1))
+            py1 = max(0, min(fh - bh, py1))
+            px2 = px1 + bw
+            py2 = py1 + bh
+
+            vehicle_id = rec.get("vehicle_id", "VEH-00")
+            vehicle_type = rec.get("vehicle_type", "car")
+            vehicle_color = rec.get("vehicle_color", "white")
+            plate_number = rec.get("license_plate", "")
+            if plate_number == "DETECTION_PENDING":
+                plate_number = ""
+
+            # Border color: High-contrast Electric Amber / Cyan
+            cv2.rectangle(frame, (px1, py1), (px2, py2), (3, 183, 255), 2)
+
+            # Top badge label with unified vehicle attributes
+            badge_title = f"{vehicle_id} | {vehicle_type.upper()} ({vehicle_color.capitalize()})"
+            badge_plate = f"PLATE: {plate_number if plate_number else 'SCANNING'}"
+
+            (tw, th), _ = cv2.getTextSize(badge_title, cv2.FONT_HERSHEY_SIMPLEX, 0.42, 1)
+            (pw, ph), _ = cv2.getTextSize(badge_plate, cv2.FONT_HERSHEY_SIMPLEX, 0.38, 1)
+            badge_w = max(tw, pw) + 8
+            badge_h = th + ph + 12
+
+            # Badge background
+            cv2.rectangle(frame, (px1, max(0, py1 - badge_h)), (px1 + badge_w, py1), (12, 14, 20), -1)
+            cv2.rectangle(frame, (px1, max(0, py1 - badge_h)), (px1 + badge_w, py1), (3, 183, 255), 1)
+
+            # Text lines
+            cv2.putText(frame, badge_title, (px1 + 4, max(12, py1 - ph - 6)), cv2.FONT_HERSHEY_SIMPLEX, 0.40, (0, 242, 254), 1, cv2.LINE_AA)
+            cv2.putText(frame, badge_plate, (px1 + 4, max(24, py1 - 4)), cv2.FONT_HERSHEY_SIMPLEX, 0.38, (245, 223, 192), 1, cv2.LINE_AA)
+
+        return frame
+
 
 
 # Global singleton instance

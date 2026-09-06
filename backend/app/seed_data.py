@@ -14,32 +14,101 @@ os.makedirs(SAMPLES_DIR, exist_ok=True)
 os.makedirs(SNAPSHOTS_DIR, exist_ok=True)
 
 DEMO_EVENTS_CATALOG = {
-    6001: {"id": 6001, "camera_id": 2, "event_type": "Vehicle Collision", "severity": "Critical", "confidence": 0.96, "confirmation_count": 6, "snapshot_path": "/snapshots/crop_vehicle_cam2_1.jpg"},
-    6002: {"id": 6002, "camera_id": 4, "event_type": "Person", "severity": "High", "confidence": 0.91, "confirmation_count": 4, "snapshot_path": "/snapshots/crop_person_cam1_1.jpg"},
-    6003: {"id": 6003, "camera_id": 3, "event_type": "Fire", "severity": "Critical", "confidence": 0.98, "confirmation_count": 7, "snapshot_path": "/snapshots/crop_vehicle_cam2_1.jpg"},
-    6004: {"id": 6004, "camera_id": 5, "event_type": "Vehicle", "severity": "High", "confidence": 0.94, "confirmation_count": 4, "snapshot_path": "/snapshots/crop_vehicle_cam2_1.jpg"},
-    6005: {"id": 6005, "camera_id": 1, "event_type": "Fighting", "severity": "Critical", "confidence": 0.97, "confirmation_count": 6, "snapshot_path": "/snapshots/crop_person_cam1_1.jpg"},
-    6006: {"id": 6006, "camera_id": 6, "event_type": "Accident", "severity": "High", "confidence": 0.93, "confirmation_count": 4, "snapshot_path": "/snapshots/crop_vehicle_cam2_1.jpg"},
-    6007: {"id": 6007, "camera_id": 3, "event_type": "Smoke", "severity": "Medium", "confidence": 0.89, "confirmation_count": 4, "snapshot_path": "/snapshots/crop_vehicle_cam2_1.jpg"},
-    6008: {"id": 6008, "camera_id": 5, "event_type": "Vehicle Collision", "severity": "Critical", "confidence": 0.95, "confirmation_count": 5, "snapshot_path": "/snapshots/crop_vehicle_cam2_1.jpg"},
-    6009: {"id": 6009, "camera_id": 2, "event_type": "Fire", "severity": "Critical", "confidence": 0.96, "confirmation_count": 6, "snapshot_path": "/snapshots/crop_vehicle_cam2_1.jpg"},
-    6010: {"id": 6010, "camera_id": 1, "event_type": "Smoke", "severity": "High", "confidence": 0.91, "confirmation_count": 5, "snapshot_path": "/snapshots/crop_vehicle_cam2_1.jpg"},
-    6011: {"id": 6011, "camera_id": 2, "event_type": "Accident", "severity": "Critical", "confidence": 0.95, "confirmation_count": 5, "snapshot_path": "/snapshots/crop_vehicle_cam2_1.jpg"},
-    6012: {"id": 6012, "camera_id": 4, "event_type": "Fighting", "severity": "High", "confidence": 0.92, "confirmation_count": 5, "snapshot_path": "/snapshots/crop_person_cam1_1.jpg"},
-    6013: {"id": 6013, "camera_id": 2, "event_type": "Vehicle", "severity": "Critical", "confidence": 0.97, "confirmation_count": 6, "snapshot_path": "/snapshots/crop_vehicle_cam2_1.jpg"},
-    6014: {"id": 6014, "camera_id": 1, "event_type": "Person", "severity": "High", "confidence": 0.95, "confirmation_count": 5, "snapshot_path": "/snapshots/crop_person_cam1_1.jpg"},
-    6015: {"id": 6015, "camera_id": 6, "event_type": "Vehicle Collision", "severity": "Critical", "confidence": 0.98, "confirmation_count": 7, "snapshot_path": "/snapshots/crop_vehicle_cam2_1.jpg"},
-    6016: {"id": 6016, "camera_id": 7, "event_type": "Fighting", "severity": "Critical", "confidence": 0.94, "confirmation_count": 4, "snapshot_path": "/snapshots/crop_person_cam1_1.jpg"},
-    6017: {"id": 6017, "camera_id": 5, "event_type": "Fire", "severity": "High", "confidence": 0.93, "confirmation_count": 5, "snapshot_path": "/snapshots/crop_vehicle_cam2_1.jpg"},
-    6018: {"id": 6018, "camera_id": 4, "event_type": "Smoke", "severity": "Medium", "confidence": 0.88, "confirmation_count": 3, "snapshot_path": "/snapshots/crop_vehicle_cam2_1.jpg"},
-    6019: {"id": 6019, "camera_id": 4, "event_type": "Accident", "severity": "High", "confidence": 0.91, "confirmation_count": 4, "snapshot_path": "/snapshots/crop_vehicle_cam2_1.jpg"},
-    6020: {"id": 6020, "camera_id": 6, "event_type": "Vehicle", "severity": "High", "confidence": 0.93, "confirmation_count": 5, "snapshot_path": "/snapshots/crop_vehicle_cam2_1.jpg"},
-    6021: {"id": 6021, "camera_id": 7, "event_type": "Person", "severity": "Medium", "confidence": 0.89, "confirmation_count": 3, "snapshot_path": "/snapshots/crop_person_cam1_1.jpg"}
+    6001: {
+        "id": 6001,
+        "camera_id": 1,
+        "event_type": "Fighting",
+        "severity": "Critical",
+        "confidence": 0.96,
+        "confirmation_count": 8,
+        "snapshot_path": "/snapshots/cctv_altercation_corridor.jpg",
+        "video_clip_path": "/samples/fight_1.mp4"
+    },
+    6002: {
+        "id": 6002,
+        "camera_id": 4,
+        "event_type": "Vehicle Collision",
+        "severity": "Critical",
+        "confidence": 0.97,
+        "confirmation_count": 8,
+        "snapshot_path": "/snapshots/accident_cut_04_highway_night_rear_end_snap.jpg",
+        "video_clip_path": "/samples/accident_cut_04_highway_night_rear_end.mp4"
+    },
+    6003: {
+        "id": 6003,
+        "camera_id": 6,
+        "event_type": "Vehicle Collision",
+        "severity": "Critical",
+        "confidence": 0.98,
+        "confirmation_count": 7,
+        "snapshot_path": "/snapshots/accident_cut_02_night_junction_tbone_snap.jpg",
+        "video_clip_path": "/samples/accident_cut_02_night_junction_tbone.mp4"
+    },
+    6004: {
+        "id": 6004,
+        "camera_id": 5,
+        "event_type": "Accident",
+        "severity": "High",
+        "confidence": 0.98,
+        "confirmation_count": 6,
+        "snapshot_path": "/snapshots/accident_cut_03_truck_swerve_sidewalk_snap.jpg",
+        "video_clip_path": "/samples/accident_cut_03_truck_swerve_sidewalk.mp4"
+    },
+    6005: {
+        "id": 6005,
+        "camera_id": 2,
+        "event_type": "Vehicle Collision",
+        "severity": "Critical",
+        "confidence": 0.98,
+        "confirmation_count": 8,
+        "snapshot_path": "/snapshots/accident_cut_01_daylight_intersection_snap.jpg",
+        "video_clip_path": "/samples/accident_cut_01_daylight_intersection.mp4"
+    },
+    6006: {
+        "id": 6006,
+        "camera_id": 4,
+        "event_type": "Vehicle Collision",
+        "severity": "High",
+        "confidence": 0.95,
+        "confirmation_count": 7,
+        "snapshot_path": "/snapshots/accident_cut_04_highway_night_rear_end_snap.jpg",
+        "video_clip_path": "/samples/accident_cut_04_highway_night_rear_end.mp4"
+    },
+    6007: {
+        "id": 6007,
+        "camera_id": 6,
+        "event_type": "Accident",
+        "severity": "High",
+        "confidence": 0.94,
+        "confirmation_count": 6,
+        "snapshot_path": "/snapshots/accident_cut_05_intersection_crossover_snap.jpg",
+        "video_clip_path": "/samples/accident_cut_05_intersection_crossover.mp4"
+    },
+    6008: {
+        "id": 6008,
+        "camera_id": 1,
+        "event_type": "Fighting",
+        "severity": "High",
+        "confidence": 0.93,
+        "confirmation_count": 6,
+        "snapshot_path": "/snapshots/cctv_altercation_concourse_2.jpg",
+        "video_clip_path": "/samples/fight_2.mp4"
+    },
+    6009: {
+        "id": 6009,
+        "camera_id": 3,
+        "event_type": "Physical Conflict",
+        "severity": "High",
+        "confidence": 0.96,
+        "confirmation_count": 7,
+        "snapshot_path": "/snapshots/cctv_altercation_lab.jpg",
+        "video_clip_path": "/samples/IMG_0006.mp4"
+    }
 }
 
 def init_db_and_seed(force_reset_events: bool = False):
     """
-    Initializes schema and seeds distributed CCTV mesh across 6 distinct camera nodes.
+    Initializes schema and seeds distributed CCTV mesh across 7 distinct camera nodes using 100% real camera footage.
     """
     Base.metadata.create_all(bind=engine)
     db: Session = SessionLocal()
@@ -61,19 +130,17 @@ def init_db_and_seed(force_reset_events: bool = False):
         db.commit()
     except Exception:
         db.rollback()
-
-    fight_1_path = os.path.join(SAMPLES_DIR, "fight_1.mp4")
-    fire_1_path = os.path.join(SAMPLES_DIR, "fire_1.mp4")
-
-    whatsapp_video_path = os.path.join(BASE_DIR, "sample_media", "whatsapp_test_video.mp4")
-    if not os.path.exists(whatsapp_video_path):
-        whatsapp_video_path = os.path.join(SAMPLES_DIR, "mumbai_csmt_station.mp4")
+    try:
+        db.execute(text("ALTER TABLE events ADD COLUMN video_clip_path VARCHAR(255)"))
+        db.commit()
+    except Exception:
+        db.rollback()
 
     cameras_to_seed = [
         {
             "id": 1,
-            "name": "CAM-01: Mumbai CSMT Concourse Altercation",
-            "source": fight_1_path,
+            "name": "CAM-01: Central Concourse // Corridor Altercation",
+            "source": os.path.join(SAMPLES_DIR, "fight_1.mp4"),
             "source_type": "video",
             "lat": 18.9401,
             "lon": 72.8351,
@@ -82,7 +149,7 @@ def init_db_and_seed(force_reset_events: bool = False):
         {
             "id": 2,
             "name": "CAM-02: Bengaluru MG Road Commercial Corridor",
-            "source": fire_1_path,
+            "source": os.path.join(SAMPLES_DIR, "accident_cut_01_daylight_intersection.mp4"),
             "source_type": "video",
             "lat": 12.9756,
             "lon": 77.6067,
@@ -90,8 +157,8 @@ def init_db_and_seed(force_reset_events: bool = False):
         },
         {
             "id": 3,
-            "name": "CAM-03: Mumbai Marine Drive Coastal Unit",
-            "source": os.path.join(SAMPLES_DIR, "IMG_0004.MOV"),
+            "name": "CAM-03: Innovation Lab // Workspace Terminal",
+            "source": os.path.join(BASE_DIR, "verified_media", "videos", "IMG_0006.mp4"),
             "source_type": "video",
             "lat": 18.9438,
             "lon": 72.8233,
@@ -100,7 +167,7 @@ def init_db_and_seed(force_reset_events: bool = False):
         {
             "id": 4,
             "name": "CAM-04: Bengaluru Trinity Circle Transit Node",
-            "source": fire_1_path,
+            "source": os.path.join(SAMPLES_DIR, "accident_cut_04_highway_night_rear_end.mp4"),
             "source_type": "video",
             "lat": 12.9725,
             "lon": 77.6200,
@@ -109,7 +176,7 @@ def init_db_and_seed(force_reset_events: bool = False):
         {
             "id": 5,
             "name": "CAM-05: Bengaluru Outer Ring Road Hub",
-            "source": fight_1_path,
+            "source": os.path.join(SAMPLES_DIR, "accident_cut_03_truck_swerve_sidewalk.mp4"),
             "source_type": "video",
             "lat": 12.9820,
             "lon": 77.6200,
@@ -118,7 +185,7 @@ def init_db_and_seed(force_reset_events: bool = False):
         {
             "id": 6,
             "name": "CAM-06: Mumbai Worli Sea Face Intercept",
-            "source": fight_1_path,
+            "source": os.path.join(SAMPLES_DIR, "accident_cut_02_night_junction_tbone.mp4"),
             "source_type": "video",
             "lat": 18.9650,
             "lon": 72.8180,
@@ -126,8 +193,8 @@ def init_db_and_seed(force_reset_events: bool = False):
         },
         {
             "id": 7,
-            "name": "CAM-07: Mall Concourse (WhatsApp Test Video - Passive Walking)",
-            "source": whatsapp_video_path,
+            "name": "CAM-07: Mall & Transit Concourse Platform",
+            "source": os.path.join(SAMPLES_DIR, "accident_cut_05_intersection_crossover.mp4"),
             "source_type": "video",
             "lat": 18.9350,
             "lon": 72.8290,
@@ -243,18 +310,32 @@ def init_db_and_seed(force_reset_events: bool = False):
                 db.add_all([s1, s2, s3])
 
             db.commit()
-            print(f"✓ Seeded {len(raw_vehicles)} vehicles and sighting routes into database.")
+            print(f"[OK] Seeded {len(raw_vehicles)} vehicles and sighting routes into database.")
         except Exception as e:
             print(f"Error seeding vehicles: {e}")
 
-    # 3. Seed Verified, Distributed Investigative Incidents
-    # Clear fragmented duplicate frames if resetting or empty
-    existing_events_count = db.query(Event).count()
-    if existing_events_count == 0 or force_reset_events:
-        now = datetime.datetime.now()
-        seeded_events = []
-        for idx, (e_id, e_info) in enumerate(DEMO_EVENTS_CATALOG.items()):
-            seeded_events.append(
+    # 3. Seed / Update Verified Distributed Investigative Incidents
+    # Clean up any events not in curated demo catalog (strict earlier 9 incidents)
+    db.query(Event).filter(~Event.id.in_(DEMO_EVENTS_CATALOG.keys())).delete(synchronize_session=False)
+    if force_reset_events:
+        db.query(Event).filter(Event.id.in_(DEMO_EVENTS_CATALOG.keys())).delete(synchronize_session=False)
+    db.commit()
+
+    now = datetime.datetime.now()
+    for idx, (e_id, e_info) in enumerate(DEMO_EVENTS_CATALOG.items()):
+        existing_event = db.query(Event).filter(Event.id == e_id).first()
+        if existing_event:
+            existing_event.camera_id = e_info["camera_id"]
+            existing_event.event_type = e_info["event_type"]
+            existing_event.severity = e_info["severity"]
+            existing_event.confidence = e_info["confidence"]
+            existing_event.confirmation_count = e_info["confirmation_count"]
+            existing_event.snapshot_path = e_info["snapshot_path"]
+            existing_event.video_clip_path = e_info.get("video_clip_path")
+            existing_event.is_demo = True
+            existing_event.status = "Active"
+        else:
+            db.add(
                 Event(
                     id=e_id,
                     camera_id=e_info["camera_id"],
@@ -265,12 +346,12 @@ def init_db_and_seed(force_reset_events: bool = False):
                     is_demo=True,
                     status="Active",
                     confirmation_count=e_info["confirmation_count"],
-                    snapshot_path=e_info["snapshot_path"]
+                    snapshot_path=e_info["snapshot_path"],
+                    video_clip_path=e_info.get("video_clip_path")
                 )
             )
-        db.add_all(seeded_events)
-        db.commit()
-        print(f"✓ Seeded {len(seeded_events)} distributed investigative incidents across all 7 threat classes into database.")
+    db.commit()
+    print(f"[OK] Synchronized {len(DEMO_EVENTS_CATALOG)} distributed investigative incidents with unique snapshots & video clips.")
 
     db.close()
 

@@ -1,36 +1,48 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  Maximize2, Minimize2, Play, Square, Settings, Radio, Video, Camera, 
-  ShieldAlert, Activity, RefreshCw, Layers, Grid, LayoutGrid, Eye, 
-  Download, Zap, CheckCircle2, AlertTriangle, Search, Filter, Cpu,
-  Sparkles, Flame, Shield, Compass, SlidersHorizontal, X
+  Maximize2, Minimize2, Play, Square, Settings, Video, Camera, 
+  Grid, LayoutGrid, Layers, CheckCircle2, Search, Sparkles, X
 } from 'lucide-react';
 
 const SOURCE_PRESETS = [
-  { label: 'Mobile / Phone IP Camera', type: 'rtsp', source: 'http://10.49.119.32:8080/video', desc: 'Android IP Webcam / DroidCam MJPEG stream' },
-  { label: 'Built-in / USB Webcam', type: 'webcam', source: '0', desc: 'Hardware camera node #0' },
-  { label: 'Violence Altercation #1', type: 'video', source: 'samples/fight_1.mp4', desc: 'CSMT CCTV fight scenario' },
-  { label: 'Violence Altercation #2', type: 'video', source: 'samples/fight_2.mp4', desc: 'Dadar Junction altercation' },
-  { label: 'Fire & Smoke Detection', type: 'video', source: 'samples/fire_1.mp4', desc: 'Thermal flame & smoke outbreak' },
-  { label: 'Traffic Collision #1', type: 'video', source: 'samples/accident_1.mp4', desc: 'Intersection vehicle crash' },
-  { label: 'Traffic Collision #2', type: 'video', source: 'samples/accident_2.mp4', desc: 'Expressway multi-car incident' },
-  { label: 'Mumbai CSMT Concourse', type: 'video', source: 'samples/mumbai_csmt_station.mp4', desc: 'Transit concourse CCTV node' },
-  { label: 'Marine Drive Coastal', type: 'video', source: 'samples/mumbai_marine_drive_north.mp4', desc: 'Coastal promenade wide-angle' },
-  { label: 'Bandra Sea Link Toll', type: 'video', source: 'samples/mumbai_sealink_toll.mp4', desc: 'Expressway toll plaza CCTV' },
-  { label: 'Bengaluru MG Road Metro', type: 'video', source: 'samples/blr_mg_road_metro.mp4', desc: 'MG Road station entrance' },
-  { label: 'RTSP IP Network Stream', type: 'rtsp', source: 'rtsp://192.168.1.100:554/stream1', desc: 'H.264 / ONVIF Network Camera' }
+  { label: 'Corridor Physical Altercation #1', type: 'video', source: 'samples/fight_1.mp4', desc: 'Corridor altercation incident' },
+  { label: 'Concourse Conflict Altercation #2', type: 'video', source: 'samples/fight_2.mp4', desc: 'Concourse physical confrontation' },
+  { label: 'Corridor Defense Incident #3', type: 'video', source: 'samples/fight_3.mp4', desc: 'Active corridor fight scene' },
+  { label: 'Corridor Fight Footage #4', type: 'video', source: 'samples/fight_4.mp4', desc: 'Corridor altercation incident' },
+  { label: 'Daylight Intersection Broadside', type: 'video', source: 'samples/accident_cut_01_daylight_intersection.mp4', desc: 'Real intersection car crash' },
+  { label: 'Night Junction T-Bone Collision', type: 'video', source: 'samples/accident_cut_02_night_junction_tbone.mp4', desc: 'Real night junction T-bone collision' },
+  { label: 'Sidewalk Truck Swerve', type: 'video', source: 'samples/accident_cut_03_truck_swerve_sidewalk.mp4', desc: 'Truck swerves onto pedestrian sidewalk' },
+  { label: 'Highway Night Rear-End', type: 'video', source: 'samples/accident_cut_04_highway_night_rear_end.mp4', desc: 'High-speed arterial rear-end spinout' },
+  { label: 'Fire & Smoke Detection', type: 'video', source: 'samples/fire_1.mp4', desc: 'Roadway transformer fire & smoke' },
+  { label: 'Pedestrian Concourse', type: 'video', source: 'samples/mall_walking.mp4', desc: 'Pedestrian concourse flow' },
+  { label: 'Hardware USB Webcam', type: 'webcam', source: '0', desc: 'Hardware camera node #0' }
 ];
-
 
 const FALLBACK_CAMERAS = [
-  { id: 1, name: "CAM-01: Mumbai CSMT Concourse Altercation", source: "samples/fight_1.mp4", source_type: "video", lat: 18.9401, lon: 72.8351, is_active: true },
-  { id: 2, name: "CAM-02: Bengaluru MG Road Commercial Corridor", source: "samples/fire_1.mp4", source_type: "video", lat: 12.9756, lon: 77.6067, is_active: true },
-  { id: 3, name: "CAM-03: Mumbai Marine Drive Coastal Unit", source: "http://10.49.119.32:8080/video", source_type: "rtsp", lat: 18.9438, lon: 72.8233, is_active: true },
-  { id: 4, name: "CAM-04: Bengaluru Trinity Circle Transit Node", source: "samples/fire_1.mp4", source_type: "video", lat: 12.9725, lon: 77.6200, is_active: true },
-  { id: 5, name: "CAM-05: Bengaluru Outer Ring Road Hub", source: "samples/fight_1.mp4", source_type: "video", lat: 12.9820, lon: 77.6200, is_active: true },
-  { id: 6, name: "CAM-06: Mumbai Worli Sea Face Intercept", source: "samples/fight_1.mp4", source_type: "video", lat: 18.9650, lon: 72.8180, is_active: true }
+  { id: 1, name: "CAM-01: Central Concourse // Corridor Altercation", source: "samples/fight_1.mp4", source_type: "video", lat: 18.9401, lon: 72.8351, is_active: true },
+  { id: 2, name: "CAM-02: Bengaluru MG Road Commercial Corridor", source: "samples/accident_cut_01_daylight_intersection.mp4", source_type: "video", lat: 12.9756, lon: 77.6067, is_active: true },
+  { id: 3, name: "CAM-03: Innovation Lab // Workspace Terminal", source: "samples/IMG_0006.mp4", source_type: "video", lat: 18.9438, lon: 72.8233, is_active: true },
+  { id: 4, name: "CAM-04: Bengaluru Trinity Circle Transit Node", source: "samples/accident_cut_04_highway_night_rear_end.mp4", source_type: "video", lat: 12.9725, lon: 77.6200, is_active: true },
+  { id: 5, name: "CAM-05: Bengaluru Outer Ring Road Hub", source: "samples/accident_cut_03_truck_swerve_sidewalk.mp4", source_type: "video", lat: 12.9820, lon: 77.6200, is_active: true },
+  { id: 6, name: "CAM-06: Mumbai Worli Sea Face Intercept", source: "samples/accident_cut_02_night_junction_tbone.mp4", source_type: "video", lat: 18.9650, lon: 72.8180, is_active: true }
 ];
+
+function LiveTimecode() {
+  const [timecode, setTimecode] = useState('');
+  useEffect(() => {
+    const timer = setInterval(() => {
+      const now = new Date();
+      const h = String(now.getHours()).padStart(2, '0');
+      const m = String(now.getMinutes()).padStart(2, '0');
+      const s = String(now.getSeconds()).padStart(2, '0');
+      const ms = String(Math.floor(now.getMilliseconds() / 10)).padStart(2, '0');
+      setTimecode(`${h}:${m}:${s}.${ms}`);
+    }, 60);
+    return () => clearInterval(timer);
+  }, []);
+  return <span>{timecode || 'LIVE'}</span>;
+}
 
 export default function LiveStreamGrid({
   cameras = [],
@@ -46,26 +58,12 @@ export default function LiveStreamGrid({
   const [editSourceType, setEditSourceType] = useState('video');
   const [selectedPreset, setSelectedPreset] = useState(null);
 
-  const [viewMode, setViewMode] = useState('primary'); // 'primary' (1-3) | 'all' (1-6) | 'dual' (2-split) | number (focused camId)
+  const [viewMode, setViewMode] = useState('primary');
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState('ALL'); // 'ALL' | 'ACTIVE' | 'OFFLINE'
+  const [filterStatus, setFilterStatus] = useState('ALL');
 
-  // Live HUD Timecode State
-  const [timecode, setTimecode] = useState('');
   const [snapshotToast, setSnapshotToast] = useState(null);
-  const [streamErrors, setStreamErrors] = useState({});
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const now = new Date();
-      const h = String(now.getHours()).padStart(2, '0');
-      const m = String(now.getMinutes()).padStart(2, '0');
-      const s = String(now.getSeconds()).padStart(2, '0');
-      const ms = String(Math.floor(now.getMilliseconds() / 10)).padStart(2, '0');
-      setTimecode(`${h}:${m}:${s}.${ms}`);
-    }, 50);
-    return () => clearInterval(timer);
-  }, []);
+  const [, setStreamErrors] = useState({});
 
   const openConfigDrawer = (cam) => {
     setEditingCamId(cam.id);
@@ -104,15 +102,14 @@ export default function LiveStreamGrid({
         link.href = dataUrl;
         link.click();
 
-        setSnapshotToast(`Snapshot captured from NODE-0${cam.id}`);
+        setSnapshotToast(`Forensic snapshot captured: NODE-0${cam.id}`);
         setTimeout(() => setSnapshotToast(null), 3000);
       } else {
-        setSnapshotToast(`Snapshot frame locked for NODE-0${cam.id}`);
+        setSnapshotToast(`Snapshot locked for NODE-0${cam.id}`);
         setTimeout(() => setSnapshotToast(null), 3000);
       }
-    } catch (err) {
-      console.warn('Snapshot capture handled gracefully:', err);
-      setSnapshotToast(`Snapshot frame locked for NODE-0${cam.id}`);
+    } catch {
+      setSnapshotToast(`Snapshot locked for NODE-0${cam.id}`);
       setTimeout(() => setSnapshotToast(null), 3000);
     }
   };
@@ -135,7 +132,6 @@ export default function LiveStreamGrid({
 
   const activeCamerasCount = activeCameraList.filter(c => c && c.is_active).length;
 
-  // Filter cameras based on search and status
   const filteredCameras = activeCameraList.filter((cam) => {
     if (!cam) return false;
     const matchSearch = !searchQuery.trim() || 
@@ -151,26 +147,25 @@ export default function LiveStreamGrid({
     return matchSearch && matchStatus;
   });
 
-  // Determine which cameras to display
   let displayCameras = [];
   if (selectedCameraId) {
     const focused = filteredCameras.find((c) => c.id === selectedCameraId) || activeCameraList.find(c => c.id === selectedCameraId);
-    displayCameras = focused ? [focused] : filteredCameras.slice(0, 3);
+    displayCameras = focused ? [focused] : filteredCameras.slice(0, 4);
   } else if (viewMode === 'all') {
     displayCameras = filteredCameras;
   } else if (viewMode === 'dual') {
     displayCameras = filteredCameras.slice(0, 2);
   } else if (viewMode === 'primary') {
-    displayCameras = filteredCameras.length >= 3 ? filteredCameras.slice(0, 3) : filteredCameras;
+    displayCameras = filteredCameras.length >= 4 ? filteredCameras.slice(0, 4) : filteredCameras;
   } else if (typeof viewMode === 'number') {
     const single = filteredCameras.find(c => c.id === viewMode) || activeCameraList.find(c => c.id === viewMode);
-    displayCameras = single ? [single] : filteredCameras.slice(0, 3);
+    displayCameras = single ? [single] : filteredCameras.slice(0, 4);
   } else {
-    displayCameras = filteredCameras.slice(0, 3);
+    displayCameras = filteredCameras.slice(0, 4);
   }
 
   return (
-    <div className="flex flex-col h-full overflow-y-auto p-4 md:p-5 bg-[#060709] text-[#e5e2e1] gap-4 select-none">
+    <div className="flex flex-col h-full overflow-y-auto p-3.5 md:p-4 bg-[#0A0A0A] text-[#e5e2e1] gap-3 select-none">
       {/* Toast Notification */}
       <AnimatePresence>
         {snapshotToast && (
@@ -178,206 +173,161 @@ export default function LiveStreamGrid({
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
-            className="fixed top-16 right-8 z-50 px-4 py-2.5 bg-[#142820] border border-[#1d4f43] text-[#9ed1c1] rounded-xl text-xs font-mono font-bold shadow-2xl flex items-center gap-2"
+            className="fixed top-14 right-6 z-50 px-3.5 py-2 bg-[#121212] border border-[#2A2A2A] text-[#9ed1c1] rounded-lg text-xs font-mono font-bold shadow-2xl flex items-center gap-2"
           >
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            <CheckCircle2 className="w-4 h-4 text-[#9ed1c1]" />
             {snapshotToast}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* 1. TOP COMMAND BAR & TELEMETRY HUD */}
-      <div className="flex flex-wrap items-center justify-between pb-3.5 border-b border-white/[0.08] gap-3">
-        <div className="flex items-center gap-3">
-          <div className="h-10 w-10 rounded-xl bg-[#12131a] border border-[#f5dfc0]/30 flex items-center justify-center text-[#f5dfc0] shadow-lg">
-            <Radio className="w-5 h-5 animate-pulse text-[#f5dfc0]" />
-          </div>
-          <div>
-            <div className="flex items-center gap-2.5 flex-wrap">
-              <h1 className="text-sm font-bold text-[#f5dfc0] uppercase tracking-wider font-mono">
-                Sense Layer — Live Surveillance Matrix
-              </h1>
-              <span className="text-[10px] font-mono px-2.5 py-0.5 rounded-full bg-[#1c2e26] text-[#9ed1c1] border border-[#2a4d3e] font-bold flex items-center gap-1.5">
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                {activeCamerasCount} / {cameras.length} NODES LIVE
-              </span>
-              <span className="hidden sm:inline-flex text-[10px] font-mono px-2 py-0.5 rounded bg-[#161822] text-[#00F2FE] border border-cyan-900/50 font-bold items-center gap-1">
-                <Sparkles className="w-3 h-3 text-[#00F2FE]" /> AI DETECTORS ONLINE
-              </span>
-            </div>
-            <p className="text-[11px] text-[#858585] font-mono mt-0.5">
-              Multi-threat neural stream inference: Violence, Fire Outbreak, Smoke Plumes & Traffic Accidents
-            </p>
-          </div>
-        </div>
-
-        {/* Global Controls & Layout Switcher */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {/* Timecode HUD */}
-          <div className="hidden lg:flex items-center gap-2 px-3 py-1.5 bg-[#0e0f16] border border-white/[0.08] rounded-xl text-xs font-mono text-[#f5dfc0]">
-            <Activity className="w-3.5 h-3.5 text-[#00F2FE] animate-pulse" />
-            <span className="text-[#858585]">UTC/LIVE:</span>
-            <span className="font-bold tracking-wider">{timecode || '00:00:00.00'}</span>
+      {/* 1. SLIM TACTICAL COMMAND & CONTROL BAR */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5 px-3 py-2 bg-[#111111] border border-[#222222] rounded-xl text-xs font-mono">
+        {/* Left Status & Sector Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto max-w-full">
+          <div className="flex items-center gap-1.5 px-2.5 py-1 bg-[#161616] rounded-md border border-[#262626]">
+            <span className="w-2 h-2 rounded-full bg-[#9ed1c1] animate-pulse" />
+            <span className="text-[11px] font-bold text-[#9ed1c1]">{activeCamerasCount}/{activeCameraList.length} LIVE</span>
           </div>
 
-          {/* Start/Stop All Group Action */}
-          <div className="flex items-center bg-[#0e0f16] p-1 rounded-xl border border-white/[0.08] text-xs font-mono">
-            <button
-              onClick={handleStartAll}
-              title="Start all camera feeds"
-              className="px-2.5 py-1 rounded-lg text-[#9ed1c1] hover:bg-[#142820] transition flex items-center gap-1 font-bold text-[11px]"
-            >
-              <Play className="w-3 h-3 text-emerald-400" /> Start All
-            </button>
-            <span className="text-white/20 mx-0.5">|</span>
-            <button
-              onClick={handleStopAll}
-              title="Stop all camera feeds"
-              className="px-2.5 py-1 rounded-lg text-[#ffd9d7] hover:bg-[#2a1416] transition flex items-center gap-1 font-bold text-[11px]"
-            >
-              <Square className="w-3 h-3 text-red-400" /> Stop All
-            </button>
-          </div>
+          <div className="h-4 w-px bg-white/10 mx-1 hidden sm:block" />
 
-          {/* Layout Mode Selector */}
-          <div className="flex items-center bg-[#0e0f16] p-1 rounded-xl border border-white/[0.08] text-xs font-mono">
-            <button
-              onClick={() => { setViewMode('primary'); onSelectCamera && onSelectCamera(null); }}
-              title="Main 3-Camera Bento Matrix"
-              className={`px-3 py-1 rounded-lg font-bold transition flex items-center gap-1.5 ${
-                viewMode === 'primary' && !selectedCameraId
-                  ? 'bg-[#f5dfc0] text-[#0A0A0A] shadow-md'
-                  : 'text-[#858585] hover:text-[#e5e2e1]'
-              }`}
-            >
-              <LayoutGrid className="w-3.5 h-3.5" /> 3-Matrix
-            </button>
-            <button
-              onClick={() => { setViewMode('all'); onSelectCamera && onSelectCamera(null); }}
-              title="All 6-Nodes Grid"
-              className={`px-3 py-1 rounded-lg font-bold transition flex items-center gap-1.5 ${
-                viewMode === 'all' && !selectedCameraId
-                  ? 'bg-[#f5dfc0] text-[#0A0A0A] shadow-md'
-                  : 'text-[#858585] hover:text-[#e5e2e1]'
-              }`}
-            >
-              <Grid className="w-3.5 h-3.5" /> All ({cameras.length})
-            </button>
-            <button
-              onClick={() => { setViewMode('dual'); onSelectCamera && onSelectCamera(null); }}
-              title="Dual Split View"
-              className={`px-3 py-1 rounded-lg font-bold transition flex items-center gap-1.5 ${
-                viewMode === 'dual' && !selectedCameraId
-                  ? 'bg-[#f5dfc0] text-[#0A0A0A] shadow-md'
-                  : 'text-[#858585] hover:text-[#e5e2e1]'
-              }`}
-            >
-              <Layers className="w-3.5 h-3.5" /> Dual
-            </button>
-
-            {selectedCameraId && (
-              <button
-                onClick={() => { onSelectCamera && onSelectCamera(null); setViewMode('primary'); }}
-                className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-[#161822] hover:bg-[#202433] text-[#00F2FE] border border-cyan-900/50 text-[11px] font-bold transition ml-1"
-              >
-                <Minimize2 className="w-3 h-3" /> Reset Focus
-              </button>
-            )}
+          {/* Quick Node Selector Pills */}
+          <div className="flex items-center gap-1.5">
+            {activeCameraList.map((cam) => {
+              const isCurrent = (selectedCameraId === cam.id) || (displayCameras.length === 1 && displayCameras[0]?.id === cam.id);
+              return (
+                <button
+                  key={cam.id}
+                  onClick={() => {
+                    setViewMode(cam.id);
+                    if (onSelectCamera) onSelectCamera(cam.id);
+                  }}
+                  className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition flex items-center gap-1.5 border ${
+                    isCurrent
+                      ? 'bg-[#222222] text-[#f5dfc0] border-[#f5dfc0]/70 shadow-sm'
+                      : cam.is_active
+                      ? 'bg-[#161616] text-[#cfc5b9] border-[#262626] hover:border-[#383838]'
+                      : 'bg-[#121212] text-[#666666] border-[#1C1C1C]'
+                  }`}
+                >
+                  <span className={`w-1.5 h-1.5 rounded-full ${cam.is_active ? 'bg-[#9ed1c1]' : 'bg-[#444]'}`} />
+                  CAM-0{cam.id}
+                </button>
+              );
+            })}
           </div>
         </div>
-      </div>
 
-      {/* 2. CHANNELS QUICK SELECTOR & FILTER TOOLBAR */}
-      <div className="flex flex-wrap items-center justify-between gap-3 bg-[#0a0b10] p-2.5 rounded-xl border border-white/[0.06] font-mono text-xs">
-        {/* Quick Channel Buttons */}
-        <div className="flex items-center gap-2 overflow-x-auto pb-1 max-w-full">
-          <span className="text-[10px] text-[#858585] uppercase tracking-wider whitespace-nowrap pl-1">
-            SECTORS:
-          </span>
-          {cameras.map((cam) => {
-            const isCurrent = (selectedCameraId === cam.id) || (displayCameras.length === 1 && displayCameras[0]?.id === cam.id);
-            return (
-              <button
-                key={cam.id}
-                onClick={() => {
-                  setViewMode(cam.id);
-                  if (onSelectCamera) onSelectCamera(cam.id);
-                }}
-                className={`px-3 py-1.5 rounded-lg text-[11px] whitespace-nowrap transition flex items-center gap-2 border font-bold ${
-                  isCurrent
-                    ? 'bg-[#1e2333] text-[#f5dfc0] border-[#f5dfc0] shadow-lg shadow-cyan-950/30'
-                    : cam.is_active
-                    ? 'bg-[#10131a] text-[#cfc5b9] border-white/[0.08] hover:border-white/[0.2]'
-                    : 'bg-[#0d0e14] text-[#858585] border-white/[0.04] hover:text-[#cfc5b9]'
-                }`}
-              >
-                <span className={`w-2 h-2 rounded-full ${cam.is_active ? 'bg-[#00f2fe] animate-pulse shadow-[0_0_8px_#00f2fe]' : 'bg-[#444]'}`} />
-                <span>CAM-0{cam.id}</span>
-                <span className="text-[9px] text-[#858585] font-normal hidden sm:inline">
-                  {cam.source_type === 'webcam' ? 'WEBCAM' : cam.source_type === 'rtsp' ? 'IP-CAM' : 'CCTV'}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-
-        {/* Search & Status Filters */}
+        {/* Center/Right Controls */}
         <div className="flex items-center gap-2 ml-auto">
+          {/* Quick Node Search */}
           <div className="relative">
-            <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-[#858585]" />
+            <Search className="w-3.5 h-3.5 absolute left-2 top-1/2 -translate-y-1/2 text-[#666666]" />
             <input
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Filter nodes..."
-              className="pl-8 pr-3 py-1 bg-[#12131d] border border-white/[0.08] rounded-lg text-[11px] text-[#e5e2e1] placeholder-[#555] outline-none focus:border-[#f5dfc0] w-32 sm:w-40"
+              placeholder="Search..."
+              className="pl-7 pr-2.5 py-1 bg-[#141414] border border-[#262626] rounded-md text-[11px] text-[#e5e2e1] placeholder-[#555555] outline-none focus:border-[#9ed1c1] w-28 sm:w-36 transition-colors"
             />
           </div>
 
-          <select
-            value={filterStatus}
-            onChange={(e) => setFilterStatus(e.target.value)}
-            className="px-2.5 py-1 bg-[#12131d] border border-white/[0.08] rounded-lg text-[11px] text-[#cfc5b9] outline-none cursor-pointer"
-          >
-            <option value="ALL">All Status</option>
-            <option value="ACTIVE">Active Feeds</option>
-            <option value="OFFLINE">Standby Only</option>
-          </select>
-        </div>
-      </div>
+            {/* Layout Mode Selector */}
+            <div className="flex items-center bg-[#141414] p-0.5 rounded-md border border-[#242424]">
+              <button
+                onClick={() => { setViewMode('primary'); onSelectCamera && onSelectCamera(null); }}
+                title="4-Grid Matrix"
+                className={`px-2 py-1 rounded text-[11px] font-bold transition flex items-center gap-1 ${
+                  viewMode === 'primary' && !selectedCameraId
+                    ? 'bg-[#242424] text-[#f5dfc0]'
+                    : 'text-[#858585] hover:text-[#e5e2e1]'
+                }`}
+              >
+                <LayoutGrid className="w-3 h-3" /> 4-Grid
+              </button>
+              <button
+                onClick={() => { setViewMode('all'); onSelectCamera && onSelectCamera(null); }}
+                title="All Feeds"
+                className={`px-2 py-1 rounded text-[11px] font-bold transition flex items-center gap-1 ${
+                  viewMode === 'all' && !selectedCameraId
+                    ? 'bg-[#242424] text-[#f5dfc0]'
+                    : 'text-[#858585] hover:text-[#e5e2e1]'
+                }`}
+              >
+                <Grid className="w-3 h-3" /> All ({activeCameraList.length})
+              </button>
+              <button
+                onClick={() => { setViewMode('dual'); onSelectCamera && onSelectCamera(null); }}
+                title="Dual Split"
+                className={`px-2 py-1 rounded text-[11px] font-bold transition flex items-center gap-1 ${
+                  viewMode === 'dual' && !selectedCameraId
+                    ? 'bg-[#242424] text-[#f5dfc0]'
+                    : 'text-[#858585] hover:text-[#e5e2e1]'
+                }`}
+              >
+                <Layers className="w-3 h-3" /> Dual
+              </button>
+            </div>
 
-      {/* 3. SURVEILLANCE STREAMS GRID */}
-      {displayCameras.length === 0 ? (
-        <div className="flex flex-col items-center justify-center p-16 bg-[#0a0b10] border border-white/[0.06] rounded-2xl text-center space-y-3 font-mono">
-          <Video className="w-12 h-12 text-[#444]" />
-          <div className="text-sm font-bold text-[#858585]">NO MATCHING SURVEILLANCE NODES</div>
-          <p className="text-xs text-[#555] max-w-sm">
-            Adjust search query or status filter to reveal surveillance nodes.
-          </p>
-          <button
-            onClick={() => { setSearchQuery(''); setFilterStatus('ALL'); setViewMode('primary'); onSelectCamera && onSelectCamera(null); }}
-            className="px-4 py-2 bg-[#161822] hover:bg-[#202433] text-[#f5dfc0] rounded-xl text-xs font-bold transition"
-          >
-            Reset Filters
-          </button>
+            {/* Start/Stop All Buttons */}
+            <div className="flex items-center bg-[#141414] p-0.5 rounded-md border border-[#242424]">
+              <button
+                onClick={handleStartAll}
+                title="Start all camera feeds"
+                className="px-2 py-1 rounded text-[#9ed1c1] hover:bg-[#1E1E1E] transition flex items-center gap-1 font-bold text-[10px]"
+              >
+                <Play className="w-2.5 h-2.5 text-[#9ed1c1]" /> Start
+              </button>
+              <button
+                onClick={handleStopAll}
+                title="Stop all camera feeds"
+                className="px-2 py-1 rounded text-[#ffd9d7] hover:bg-[#2A1416] transition flex items-center gap-1 font-bold text-[10px]"
+              >
+                <Square className="w-2.5 h-2.5 text-red-400" /> Stop
+              </button>
+            </div>
+
+            {selectedCameraId && (
+              <button
+                onClick={() => { onSelectCamera && onSelectCamera(null); setViewMode('primary'); }}
+                className="flex items-center gap-1 px-2 py-1 rounded bg-[#161616] hover:bg-[#222222] text-[#9ed1c1] border border-[#262626] text-[10px] font-bold transition"
+              >
+                <Minimize2 className="w-3 h-3" /> Reset
+              </button>
+            )}
+          </div>
         </div>
-      ) : (
-        <div
-          className={`grid gap-4 flex-1 ${
-            displayCameras.length === 1
-              ? 'grid-cols-1 max-w-5xl mx-auto w-full'
-              : displayCameras.length === 2
-              ? 'grid-cols-1 lg:grid-cols-2'
-              : displayCameras.length <= 4
-              ? 'grid-cols-1 md:grid-cols-2'
-              : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
-          }`}
-        >
-          {displayCameras.map((cam) => {
-            if (!cam) return null;
-            const isSelected = selectedCameraId === cam.id;
-            const isWebcam = cam.source_type === 'webcam' || cam.source === '0';
-            const isNetwork = cam.id === 3 || cam.source_type === 'rtsp' || (cam.source && cam.source.startsWith('http'));
+
+        {/* 2. SURVEILLANCE STREAMS GRID */}
+        {displayCameras.length === 0 ? (
+          <div className="flex flex-col items-center justify-center p-12 bg-[#111111] border border-[#222222] rounded-xl text-center space-y-3 font-mono">
+            <Video className="w-10 h-10 text-[#444]" />
+            <div className="text-xs font-bold text-[#858585]">NO MATCHING SURVEILLANCE NODES</div>
+            <button
+              onClick={() => { setSearchQuery(''); setFilterStatus('ALL'); setViewMode('primary'); onSelectCamera && onSelectCamera(null); }}
+              className="px-3 py-1.5 bg-[#161616] hover:bg-[#222222] text-[#f5dfc0] rounded-lg text-xs font-bold transition"
+            >
+              Reset Filters
+            </button>
+          </div>
+        ) : (
+          <div
+            className={`grid gap-3 flex-1 ${
+              displayCameras.length === 1
+                ? 'grid-cols-1 max-w-5xl mx-auto w-full'
+                : displayCameras.length === 2
+                ? 'grid-cols-1 lg:grid-cols-2'
+                : displayCameras.length <= 4
+                ? 'grid-cols-1 md:grid-cols-2'
+                : 'grid-cols-1 md:grid-cols-2 xl:grid-cols-3'
+            }`}
+          >
+            {displayCameras.map((cam) => {
+              if (!cam) return null;
+              const isSelected = selectedCameraId === cam.id;
+              const isWebcam = cam.source_type === 'webcam' || cam.source === '0';
+              const isNetwork = cam.source_type === 'rtsp' || (cam.source && cam.source.startsWith('http'));
             const latVal = typeof cam.lat === 'number' ? cam.lat.toFixed(4) : '18.9401';
             const lonVal = typeof cam.lon === 'number' ? cam.lon.toFixed(4) : '72.8351';
 
@@ -385,50 +335,53 @@ export default function LiveStreamGrid({
               <motion.div
                 key={cam.id}
                 layout
-                initial={{ opacity: 0, scale: 0.98 }}
+                initial={{ opacity: 0, scale: 0.99 }}
                 animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.2 }}
-                className={`relative flex flex-col bg-[#0b0c12] border rounded-2xl overflow-hidden transition-all shadow-2xl group ${
+                transition={{ duration: 0.15 }}
+                className={`relative flex flex-col bg-[#111111] border rounded-xl overflow-hidden shadow-xl group ${
                   isSelected 
-                    ? 'border-[#f5dfc0] ring-1 ring-[#f5dfc0]/50' 
-                    : 'border-white/[0.08] hover:border-white/[0.22]'
+                    ? 'border-[#9ed1c1] ring-1 ring-[#9ed1c1]/40' 
+                    : 'border-[#222222] hover:border-[#333333]'
                 }`}
               >
-                {/* Camera Top HUD Header */}
-                <div className="flex items-center justify-between px-3.5 py-2.5 bg-[#0f1118] border-b border-white/[0.06] select-none font-mono">
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="flex items-center gap-1.5 text-[10px] font-bold px-2 py-0.5 rounded bg-black/50 border border-white/[0.08]">
-                      <span className={`w-2 h-2 rounded-full ${cam.is_active ? 'bg-red-500 animate-pulse shadow-[0_0_6px_#ef4444]' : 'bg-[#555]'}`} />
-                      <span className={cam.is_active ? 'text-red-300 font-bold' : 'text-[#858585]'}>
-                        {cam.is_active ? 'REC' : 'OFFLINE'}
-                      </span>
-                    </span>
-
-                    <span className="text-xs font-bold text-[#f5dfc0] truncate" title={cam.name}>
-                      NODE-0{cam.id}: {cam.name || `Camera ${cam.id}`}
+                {/* Camera Top HUD Bar */}
+                <div className="flex items-center justify-between px-3 py-2 bg-[#141414] border-b border-[#202020] select-none font-mono">
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className={`w-2 h-2 rounded-full flex-shrink-0 ${cam.is_active ? 'bg-red-500 animate-pulse' : 'bg-[#555]'}`} />
+                    <span className="text-xs font-bold text-[#f5dfc0] truncate">
+                      NODE-0{cam.id}: {cam.name?.split(':')[1]?.trim() || cam.name}
                     </span>
                   </div>
 
-                  {/* Badges & Window Controls */}
+                  {/* Badges & Quick Icons */}
                   <div className="flex items-center gap-1.5 flex-shrink-0">
                     {isNetwork && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#1c2e26] text-[#9ed1c1] border border-[#2a4d3e] font-bold">
-                        RTSP/IP
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#161616] text-[#9ed1c1] border border-[#2A2A2A] font-bold">
+                        RTSP
                       </span>
                     )}
                     {isWebcam && (
-                      <span className="text-[9px] px-1.5 py-0.5 rounded bg-[#f5dfc0] text-[#0A0A0A] font-black">
-                        LOCAL CAM
+                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-[#161616] text-[#f5dfc0] border border-[#2A2A2A] font-bold">
+                        LOCAL
                       </span>
                     )}
 
                     {/* Snapshot Button */}
                     <button
                       onClick={() => handleSnapshot(cam)}
-                      title="Capture Instant High-Res Forensic Snapshot"
-                      className="p-1.5 rounded-lg bg-black/40 hover:bg-[#1f2333] text-[#858585] hover:text-[#00F2FE] border border-white/[0.06] transition"
+                      title="Forensic Snapshot"
+                      className="p-1 rounded bg-[#181818] hover:bg-[#222222] text-[#858585] hover:text-[#9ed1c1] border border-[#262626] transition"
                     >
-                      <Camera className="w-3.5 h-3.5" />
+                      <Camera className="w-3 h-3" />
+                    </button>
+
+                    {/* Source Config Button */}
+                    <button
+                      onClick={() => openConfigDrawer(cam)}
+                      title="Configure Source"
+                      className="p-1 rounded bg-[#181818] hover:bg-[#222222] text-[#858585] hover:text-[#f5dfc0] border border-[#262626] transition"
+                    >
+                      <Settings className="w-3 h-3" />
                     </button>
 
                     {/* Fullscreen / Focus Button */}
@@ -442,16 +395,16 @@ export default function LiveStreamGrid({
                           setViewMode(cam.id);
                         }
                       }}
-                      title={isSelected ? 'Return to Matrix View' : 'Focus Single Node Stream'}
-                      className="p-1.5 rounded-lg bg-black/40 hover:bg-[#1f2333] text-[#858585] hover:text-[#f5dfc0] border border-white/[0.06] transition"
+                      title={isSelected ? 'Return to Matrix' : 'Focus Stream'}
+                      className="p-1 rounded bg-[#181818] hover:bg-[#222222] text-[#858585] hover:text-[#f5dfc0] border border-[#262626] transition"
                     >
-                      {isSelected ? <Minimize2 className="w-3.5 h-3.5 text-[#f5dfc0]" /> : <Maximize2 className="w-3.5 h-3.5" />}
+                      {isSelected ? <Minimize2 className="w-3 h-3 text-[#9ed1c1]" /> : <Maximize2 className="w-3 h-3" />}
                     </button>
                   </div>
                 </div>
 
                 {/* Camera Viewport Container */}
-                <div className="relative aspect-video bg-[#050608] overflow-hidden flex items-center justify-center flex-1 min-h-[230px]">
+                <div className="relative aspect-video bg-[#050505] overflow-hidden flex items-center justify-center flex-1 min-h-[220px]">
                   {cam.is_active ? (
                     <>
                       {/* Active MJPEG Stream */}
@@ -459,102 +412,66 @@ export default function LiveStreamGrid({
                         id={`cam-feed-${cam.id}`}
                         src={`/stream/${cam.id}`}
                         alt={cam.name}
-                        className="w-full h-full object-cover"
-                        onError={(e) => {
+                        className="w-full h-full object-cover smooth-video-feed"
+                        onError={() => {
                           setStreamErrors(prev => ({ ...prev, [cam.id]: true }));
                         }}
                       />
 
-                      {/* HUD Top Left Telemetry Overlay */}
-                      <div className="absolute top-2.5 left-2.5 flex flex-col gap-1 pointer-events-none font-mono">
-                        <div className="flex items-center gap-1.5 bg-black/80 backdrop-blur-md px-2 py-0.5 border border-white/[0.12] text-[9px] text-[#9ed1c1] rounded">
-                          <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
-                          <span>NODE-0{cam.id} // {cam.source_type?.toUpperCase() || 'STREAM'}</span>
+                      {/* On-Hover Action Overlay */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-black/30 opacity-0 group-hover:opacity-100 transition-opacity duration-200 pointer-events-none flex flex-col justify-between p-2.5">
+                        <div className="flex justify-end items-start pointer-events-auto">
+                          <div className="bg-black/80 backdrop-blur-md px-2 py-0.5 rounded border border-white/10 text-[9px] font-mono text-[#f5dfc0]">
+                            1080P // 30 FPS
+                          </div>
                         </div>
-                        <div className="bg-black/80 backdrop-blur-md px-2 py-0.5 border border-white/[0.08] text-[9px] text-cyan-300 rounded font-bold">
-                          AI: MULTI-THREAT DETECTOR ON
+
+                        <div className="flex justify-between items-end pointer-events-auto">
+                          <button
+                            onClick={() => onStopDetection && onStopDetection(cam.id)}
+                            className="px-2 py-1 rounded bg-[#2A1417]/90 hover:bg-[#3D1A1F] text-[#ffd9d7] border border-[#8e3335] text-[10px] font-mono font-bold flex items-center gap-1 shadow-lg transition backdrop-blur-sm"
+                          >
+                            <Square className="w-2.5 h-2.5 text-red-400" /> Disconnect
+                          </button>
+                          <span className="text-[9px] font-mono text-[#858585] bg-black/80 px-2 py-0.5 rounded border border-white/10">
+                            <LiveTimecode />
+                          </span>
                         </div>
-                      </div>
-
-                      {/* HUD Top Right Resolution & Latency */}
-                      <div className="absolute top-2.5 right-2.5 flex items-center gap-1.5 pointer-events-none font-mono">
-                        <div className="bg-black/80 backdrop-blur-md px-2 py-0.5 border border-white/[0.1] text-[9px] text-[#f5dfc0] rounded font-bold">
-                          1080P // 30 FPS
-                        </div>
-                      </div>
-
-                      {/* HUD Bottom Cyber Scanline Effect */}
-                      <div className="absolute bottom-0 inset-x-0 h-1 bg-gradient-to-r from-transparent via-[#00F2FE]/40 to-transparent pointer-events-none" />
-
-                      {/* Real-time Timecode Watermark (Bottom Right) */}
-                      <div className="absolute bottom-2 right-2.5 bg-black/85 px-2 py-0.5 rounded border border-white/[0.08] text-[9px] font-mono text-[#858585] pointer-events-none">
-                        {timecode || 'LIVE'}
                       </div>
                     </>
                   ) : (
-                    /* Offline Standby State with Tactical Hologram Display */
-                    <div className="flex flex-col items-center justify-center p-6 text-center space-y-3 font-mono relative w-full h-full">
-                      {/* Stylized background reticle grid */}
-                      <div className="absolute inset-0 bg-[radial-gradient(#1f2438_1px,transparent_1px)] [background-size:16px_16px] opacity-20 pointer-events-none" />
-
-                      <div className="w-12 h-12 rounded-2xl bg-[#0f111a] border border-white/[0.08] flex items-center justify-center text-[#666] relative z-10 shadow-inner">
-                        <Video className="w-6 h-6 text-[#858585] opacity-50" />
+                    /* Tactical Standby Reticle */
+                    <div className="flex flex-col items-center justify-center p-6 text-center space-y-2.5 font-mono relative w-full h-full">
+                      <div className="w-10 h-10 rounded-xl bg-[#141414] border border-[#222222] flex items-center justify-center text-[#555]">
+                        <Video className="w-5 h-5 text-[#777777]" />
                       </div>
-
-                      <div className="relative z-10">
-                        <div className="text-xs font-bold text-[#e5e2e1] uppercase tracking-wider">
-                          CAMERA STREAM STANDBY
+                      <div>
+                        <div className="text-[11px] font-bold text-[#cfc5b9] tracking-wider uppercase">
+                          FEED STANDBY
                         </div>
-                        <div className="text-[10px] text-[#858585] mt-0.5 truncate max-w-[260px]">
-                          Source: {cam.source || 'Default Stream Pipeline'}
+                        <div className="text-[9px] text-[#777777] truncate max-w-[220px]">
+                          {cam.source || 'Pipeline node'}
                         </div>
                       </div>
-
                       <button
                         onClick={() => onStartDetection && onStartDetection(cam.id, cam.source, cam.source_type)}
-                        className="relative z-10 px-4 py-2 bg-[#142820] hover:bg-[#1d3d30] text-[#9ed1c1] border border-[#1d4f43] rounded-xl text-xs font-bold flex items-center gap-2 transition shadow-lg hover:scale-105"
+                        className="px-3 py-1.5 bg-[#161616] hover:bg-[#222222] text-[#9ed1c1] border border-[#2A2A2A] rounded-lg text-[10px] font-bold flex items-center gap-1.5 transition shadow"
                       >
-                        <Play className="w-3.5 h-3.5 text-emerald-400" /> Initialize Stream Node
+                        <Play className="w-3 h-3 text-[#9ed1c1]" /> Connect Feed
                       </button>
                     </div>
                   )}
                 </div>
 
-                {/* Camera Footer HUD */}
-                <div className="flex items-center justify-between px-3.5 py-2.5 bg-[#0e1017] border-t border-white/[0.06] text-[10px] font-mono select-none">
-                  <div className="flex items-center gap-2">
-                    {cam.is_active ? (
-                      <button
-                        onClick={() => onStopDetection && onStopDetection(cam.id)}
-                        className="px-2.5 py-1 rounded-lg bg-[#2a1416] hover:bg-[#3a1a1c] text-[#ffd9d7] border border-[#8e3335] flex items-center gap-1.5 font-bold transition shadow"
-                      >
-                        <Square className="w-2.5 h-2.5 text-red-400" /> Disconnect
-                      </button>
-                    ) : (
-                      <button
-                        onClick={() => onStartDetection && onStartDetection(cam.id, cam.source, cam.source_type)}
-                        className="px-2.5 py-1 rounded-lg bg-[#142820] hover:bg-[#1c382c] text-[#9ed1c1] border border-[#1d4f43] flex items-center gap-1.5 font-bold transition shadow"
-                      >
-                        <Play className="w-2.5 h-2.5 text-emerald-400" /> Connect
-                      </button>
-                    )}
-
-                    <button
-                      onClick={() => openConfigDrawer(cam)}
-                      className="px-2.5 py-1 rounded-lg bg-[#151722] hover:bg-[#1f2334] text-[#cfc5b9] hover:text-[#f5dfc0] border border-white/[0.08] flex items-center gap-1.5 transition"
-                    >
-                      <Settings className="w-2.5 h-2.5 text-[#00F2FE]" /> Source
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-[#858585]">
-                    <span className="hidden sm:inline">
-                      GPS: {latVal}°N, {lonVal}°E
-                    </span>
-                    <span className="text-[9px] px-1.5 py-0.5 rounded bg-black/40 border border-white/[0.06] text-cyan-300">
-                      {cam.is_active ? 'MJPEG // 2.4Mbps' : 'STANDBY'}
-                    </span>
-                  </div>
+                {/* Stream Footer Bar */}
+                <div className="flex items-center justify-between px-3 py-1.5 bg-[#0E0E0E] border-t border-[#1C1C1C] text-[10px] font-mono select-none text-[#777777]">
+                  <span>GPS: {latVal}°N, {lonVal}°E</span>
+                  <span className={`text-[9px] px-2 py-0.5 rounded border flex items-center gap-1.5 ${
+                    cam.is_active ? 'bg-[#141414] border-[#2A2A2A] text-[#9ed1c1]' : 'bg-[#121212] border-[#1C1C1C] text-[#666666]'
+                  }`}>
+                    {cam.is_active && <span className="w-1.5 h-1.5 rounded-full bg-[#9ed1c1] animate-pulse" />}
+                    {cam.is_active ? 'ONLINE' : 'OFFLINE'}
+                  </span>
                 </div>
               </motion.div>
             );
@@ -562,137 +479,96 @@ export default function LiveStreamGrid({
         </div>
       )}
 
-      {/* 4. SOURCE CONFIGURATION MODAL DRAWER */}
+      {/* Camera Configuration Modal */}
       <AnimatePresence>
-        {editingCamId !== null && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md"
-            onClick={() => setEditingCamId(null)}
-          >
+        {editingCamId && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-md p-4">
             <motion.div
-              initial={{ scale: 0.95, y: 15 }}
-              animate={{ scale: 1, y: 0 }}
-              exit={{ scale: 0.95, y: 15 }}
-              className="w-full max-w-lg bg-[#0d0e14] border border-white/[0.12] rounded-2xl p-6 shadow-2xl text-[#e5e2e1] space-y-4 font-mono select-none"
-              onClick={(e) => e.stopPropagation()}
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-md bg-[#141414] border border-[#2A2A2A] rounded-2xl p-5 shadow-2xl space-y-4 font-mono text-xs text-[#e5e2e1]"
             >
-              {/* Modal Header */}
-              <div className="flex items-center justify-between border-b border-white/[0.08] pb-3.5">
-                <div className="flex items-center gap-2.5">
-                  <div className="p-1.5 rounded-lg bg-[#141624] border border-white/[0.08] text-[#f5dfc0]">
-                    <SlidersHorizontal className="w-4 h-4 text-[#f5dfc0]" />
-                  </div>
-                  <div>
-                    <h3 className="text-xs font-bold text-[#f5dfc0] uppercase tracking-wider">
-                      Configure Stream Source — NODE-0{editingCamId}
-                    </h3>
-                    <p className="text-[10px] text-[#858585]">
-                      Select protocol preset or specify custom RTSP/video source
-                    </p>
-                  </div>
+              <div className="flex justify-between items-center pb-2 border-b border-[#222222]">
+                <div className="flex items-center gap-2">
+                  <Settings className="w-4 h-4 text-[#9ed1c1]" />
+                  <span className="font-bold text-[#f5dfc0]">Configure Node-0{editingCamId}</span>
                 </div>
                 <button
                   onClick={() => setEditingCamId(null)}
-                  className="p-1 rounded-lg hover:bg-white/[0.08] text-[#858585] hover:text-white transition"
+                  className="p-1 rounded-md text-[#777777] hover:text-[#e5e2e1] transition"
                 >
                   <X className="w-4 h-4" />
                 </button>
               </div>
 
-              {/* Protocol Type Selector */}
-              <div className="space-y-2">
-                <label className="block text-[#858585] text-[10px] uppercase tracking-wider font-bold">
-                  1. Stream Protocol Type:
-                </label>
-                <div className="grid grid-cols-3 gap-2 text-xs">
-                  {['video', 'webcam', 'rtsp'].map((type) => (
+              {/* Presets */}
+              <div>
+                <label className="text-[10px] text-[#858585] uppercase tracking-wider mb-1.5 block">Quick Source Presets</label>
+                <div className="grid grid-cols-1 gap-1 max-h-36 overflow-y-auto pr-1">
+                  {SOURCE_PRESETS.map((p, idx) => (
                     <button
-                      key={type}
-                      type="button"
-                      onClick={() => {
-                        setEditSourceType(type);
-                        if (type === 'webcam') setEditSource('0');
-                      }}
-                      className={`py-2 px-3 rounded-xl text-center border uppercase text-xs font-bold transition flex items-center justify-center gap-1.5 ${
-                        editSourceType === type
-                          ? 'bg-[#f5dfc0] text-[#0A0A0A] border-[#f5dfc0] shadow-md'
-                          : 'bg-[#121420] text-[#858585] border-white/[0.08] hover:border-white/[0.2]'
+                      key={idx}
+                      onClick={() => handleApplyPreset(p)}
+                      className={`px-2.5 py-1.5 rounded-lg text-left transition border text-[11px] flex justify-between items-center ${
+                        selectedPreset === p.label
+                          ? 'bg-[#222222] border-[#9ed1c1] text-[#f5dfc0]'
+                          : 'bg-[#181818] border-[#262626] text-[#cfc5b9] hover:bg-[#1E1E1E]'
                       }`}
                     >
-                      {type === 'webcam' ? '🎥 Webcam' : type === 'rtsp' ? '🌐 RTSP IP' : '📁 Video File'}
+                      <span className="font-bold truncate">{p.label}</span>
+                      <span className="text-[9px] text-[#777777] uppercase ml-2">{p.type}</span>
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Quick Presets */}
+              {/* Source Input */}
               <div className="space-y-2">
-                <label className="block text-[#858585] text-[10px] uppercase tracking-wider font-bold">
-                  2. Ingestion Source Presets:
-                </label>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
-                  {SOURCE_PRESETS.map((preset) => (
+                <div>
+                  <label className="text-[10px] text-[#858585] uppercase tracking-wider mb-1 block">Custom Source Path / URL</label>
+                  <input
+                    type="text"
+                    value={editSource}
+                    onChange={(e) => setEditSource(e.target.value)}
+                    placeholder="e.g. samples/fire_1.mp4 or rtsp://..."
+                    className="w-full px-3 py-1.5 bg-[#181818] border border-[#262626] rounded-lg text-[11px] text-[#e5e2e1] outline-none focus:border-[#9ed1c1]"
+                  />
+                </div>
+                <div className="flex gap-2">
+                  {['video', 'rtsp', 'webcam'].map((st) => (
                     <button
-                      key={preset.label}
+                      key={st}
                       type="button"
-                      onClick={() => handleApplyPreset(preset)}
-                      className={`p-2.5 rounded-xl border text-left text-xs transition space-y-0.5 ${
-                        editSource === preset.source
-                          ? 'bg-[#1a1f30] border-[#00F2FE] text-[#f5dfc0]'
-                          : 'bg-[#10121b] border-white/[0.06] text-[#cfc5b9] hover:bg-[#161824]'
+                      onClick={() => setEditSourceType(st)}
+                      className={`flex-1 py-1 rounded-lg text-[10px] font-bold uppercase transition border ${
+                        editSourceType === st
+                          ? 'bg-[#222222] text-[#9ed1c1] border-[#9ed1c1]'
+                          : 'bg-[#181818] text-[#777777] border-[#262626]'
                       }`}
                     >
-                      <div className="font-bold flex items-center justify-between">
-                        <span>{preset.label}</span>
-                        <span className="text-[9px] uppercase px-1.5 py-0.2 rounded bg-black/40 text-cyan-300">
-                          {preset.type}
-                        </span>
-                      </div>
-                      <div className="text-[10px] text-[#858585] truncate">{preset.desc}</div>
+                      {st}
                     </button>
                   ))}
                 </div>
               </div>
 
-              {/* Custom Source Path / URL Input */}
-              <div className="space-y-1.5">
-                <label className="block text-[#858585] text-[10px] uppercase tracking-wider font-bold">
-                  3. Source Path or Stream URL:
-                </label>
-                <input
-                  type="text"
-                  value={editSource}
-                  onChange={(e) => setEditSource(e.target.value)}
-                  placeholder="e.g. http://10.49.119.32:8080/video, 0 (Webcam), or rtsp://..."
-                  className="w-full px-3.5 py-2.5 bg-[#06070a] border border-white/[0.1] rounded-xl text-[#e5e2e1] text-xs font-mono focus:border-[#f5dfc0] outline-none"
-                />
-                <p className="text-[9px] text-[#888]">
-                  💡 <strong>Phone IP Camera Tip:</strong> For Android IP Webcam, use <span className="text-cyan-300 font-bold">/video</span> (e.g. <code className="text-amber-300">http://10.49.119.32:8080/video</code>) rather than <span className="text-red-400">/videos</span>.
-                </p>
-              </div>
-
-              {/* Modal Actions */}
-              <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-white/[0.08]">
+              <div className="flex gap-2 pt-2 border-t border-[#222222]">
                 <button
-                  type="button"
                   onClick={() => setEditingCamId(null)}
-                  className="px-4 py-2 bg-[#161822] text-[#858585] hover:text-[#e5e2e1] rounded-xl text-xs font-bold transition"
+                  className="flex-1 py-1.5 rounded-lg bg-[#181818] text-[#858585] hover:text-[#e5e2e1] border border-[#262626] transition font-bold"
                 >
                   Cancel
                 </button>
                 <button
-                  type="button"
                   onClick={() => handleSaveConfig(editingCamId)}
-                  className="px-5 py-2 bg-[#f5dfc0] hover:bg-white text-[#0A0A0A] font-bold text-xs uppercase rounded-xl transition shadow-lg flex items-center gap-1.5"
+                  className="flex-1 py-1.5 rounded-lg bg-[#141414] hover:bg-[#1E1E1E] text-[#9ed1c1] border border-[#9ed1c1]/50 transition font-bold shadow"
                 >
-                  <Play className="w-3.5 h-3.5" /> Apply & Connect Feed
+                  Apply & Stream
                 </button>
               </div>
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
     </div>
